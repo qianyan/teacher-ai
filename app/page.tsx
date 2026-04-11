@@ -1,5 +1,7 @@
 "use client";
 
+import { AppHeader } from "@/components/AppHeader";
+import { HistorySidebar } from "@/components/HistorySidebar";
 import { PhotoList } from "@/components/PhotoList";
 import { PreviewPanel } from "@/components/PreviewPanel";
 import { RichEditor } from "@/components/RichEditor";
@@ -10,10 +12,13 @@ import {
   DEFAULT_INTRO_HTML,
   DEFAULT_SUB_TITLE,
 } from "@/lib/persistence/defaults";
-import { MAX_HISTORY } from "@/lib/persistence/idb";
 import { useReportPersistence } from "@/lib/persistence/use-report-persistence";
 import type { PhotoEntry } from "@/lib/photos/inject-blobs";
-import { useCallback, useMemo, useState } from "react";
+import {
+  readHistorySidebarOpen,
+  writeHistorySidebarOpen,
+} from "@/lib/history-sidebar-storage";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export default function HomePage() {
   const defaultHydratedState = useMemo(
@@ -38,6 +43,16 @@ export default function HomePage() {
   const [fullHtml, setFullHtml] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [historySidebarOpen, setHistorySidebarOpen] = useState(false);
+
+  useEffect(() => {
+    setHistorySidebarOpen(readHistorySidebarOpen());
+  }, []);
+
+  useEffect(() => {
+    writeHistorySidebarOpen(historySidebarOpen);
+  }, [historySidebarOpen]);
 
   const {
     isHydrating,
@@ -108,16 +123,16 @@ export default function HomePage() {
     recordHistoryAfterGenerate,
   ]);
 
-  const draftTimeLabel =
-    draftSavedAt !== null
-      ? new Date(draftSavedAt).toLocaleString(undefined, {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          month: "numeric",
-          day: "numeric",
-        })
-      : null;
+  const shellClass =
+    `app-shell${historySidebarOpen ? " app-shell--history-open" : ""}`;
+
+  const handleRestoreHistory = useCallback(
+    (id: string) => {
+      void loadHistoryEntry(id);
+      setHistorySidebarOpen(false);
+    },
+    [loadHistoryEntry],
+  );
 
   if (isHydrating) {
     return (
@@ -131,128 +146,29 @@ export default function HomePage() {
 
   return (
     <SessionUnlock>
-      <main className="app-shell">
-        <header className="app-hero">
-          <h1>托班两周周报 · Teacher AI</h1>
-          <p>
-            编辑开篇与正文、导入照片并核对文件名，生成 HTML 预览与长图 PNG。需配置服务端
-            LLM 环境变量。
-          </p>
-          <div
-            style={{
-              marginTop: 12,
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "center",
-              gap: 10,
-              fontSize: 13,
-              color: "var(--text-muted)",
-            }}
-          >
-            <span>
-              {draftError ? (
-                <span style={{ color: "var(--danger)" }}>草稿：{draftError}</span>
-              ) : draftTimeLabel ? (
-                <>草稿已自动保存 · {draftTimeLabel}</>
-              ) : (
-                <>草稿将自动保存到本机浏览器</>
-              )}
-            </span>
-            <button
-              type="button"
-              className="btn btn--secondary"
-              style={{ fontSize: 13, padding: "6px 12px" }}
-              onClick={() => {
-                void clearDraftAndReset();
-              }}
-            >
-              清除草稿并重置
-            </button>
-          </div>
-        </header>
+      <main className={shellClass}>
+        <AppHeader
+          draftSavedAt={draftSavedAt}
+          draftError={draftError}
+          onClearDraft={() => {
+            void clearDraftAndReset();
+          }}
+          historyCount={history.length}
+          historySidebarOpen={historySidebarOpen}
+          onToggleHistorySidebar={() =>
+            setHistorySidebarOpen((o) => !o)
+          }
+        />
 
-        <section className="app-panel" style={{ marginBottom: 20 }}>
-          <h2 className="app-section-title">历史记录</h2>
-          <p style={{ margin: "0 0 12px", fontSize: 14, color: "var(--text-muted)" }}>
-            每次成功「生成预览 HTML」会自动保存一条（含文字、照片与预览 HTML），最多保留{" "}
-            {MAX_HISTORY} 条。
-          </p>
-          {history.length === 0 ? (
-            <p style={{ margin: 0, fontSize: 14, color: "var(--text-muted)" }}>
-              尚无历史。生成预览成功后将出现在此。
-            </p>
-          ) : (
-            <ul
-              style={{
-                listStyle: "none",
-                padding: 0,
-                margin: 0,
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-              }}
-            >
-              {history.map((row) => (
-                <li
-                  key={row.id}
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "10px 12px",
-                    background: "var(--panel-elevated)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-sm)",
-                  }}
-                >
-                  <span style={{ flex: "1 1 200px", fontSize: 14 }}>
-                    <strong style={{ color: "var(--text)" }}>
-                      {row.snapshot.biweeklyDateRange}
-                    </strong>
-                    <span style={{ color: "var(--text-muted)", marginLeft: 8 }}>
-                      {new Date(row.savedAt).toLocaleString()}
-                    </span>
-                  </span>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button
-                      type="button"
-                      className="btn btn--secondary"
-                      style={{ fontSize: 13, padding: "6px 12px" }}
-                      onClick={() => {
-                        if (
-                          !window.confirm(
-                            "将用该条历史替换当前编辑区与照片，确定恢复？",
-                          )
-                        ) {
-                          return;
-                        }
-                        void loadHistoryEntry(row.id);
-                      }}
-                    >
-                      恢复
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn--secondary"
-                      style={{
-                        fontSize: 13,
-                        padding: "6px 12px",
-                        color: "var(--danger)",
-                      }}
-                      onClick={() => {
-                        if (!window.confirm("删除这条历史记录？")) return;
-                        void deleteHistoryEntry(row.id);
-                      }}
-                    >
-                      删除
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <HistorySidebar
+          open={historySidebarOpen}
+          onClose={() => setHistorySidebarOpen(false)}
+          history={history}
+          onRestore={handleRestoreHistory}
+          onDelete={(id) => {
+            void deleteHistoryEntry(id);
+          }}
+        />
 
         <div className="app-grid app-grid--main">
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>

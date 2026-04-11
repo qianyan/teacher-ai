@@ -1,4 +1,3 @@
-import { RootChrome } from "@/components/RootChrome";
 import { ThemeScript } from "@/components/ThemeScript";
 import type { Metadata } from "next";
 import "./globals.css";
@@ -18,9 +17,7 @@ export default function RootLayout({
       <head>
         <ThemeScript />
       </head>
-      <body>
-        <RootChrome>{children}</RootChrome>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
