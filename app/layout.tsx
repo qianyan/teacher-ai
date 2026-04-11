@@ -1,3 +1,5 @@
+import { RootChrome } from "@/components/RootChrome";
+import { ThemeScript } from "@/components/ThemeScript";
 import type { Metadata } from "next";
 import "./globals.css";
 
@@ -12,8 +14,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN">
-      <body>{children}</body>
+    <html lang="zh-CN" data-theme="light" suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
+      <body>
+        <RootChrome>{children}</RootChrome>
+      </body>
     </html>
   );
 }
