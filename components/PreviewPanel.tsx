@@ -3,11 +3,10 @@
 import { captureIframeDocumentAsPngBlob } from "@/lib/photos/capture-iframe-png";
 import {
   buildPhotoBlobUrlMap,
-  buildPhotoDataUrlMap,
+  buildPhotoUrlMapForPersist,
   injectPhotoBlobUrls,
   type PhotoEntry,
 } from "@/lib/photos/inject-blobs";
-import { ensureReportPhotoBlobUrls } from "@/lib/photos/upload-report-blobs";
 import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 
@@ -18,8 +17,6 @@ type Props = {
 
 export function PreviewPanel({ fullHtml, photos }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  /** Cached Vercel Blob URL per photo id (avoids re-upload on repeat downloads). */
-  const blobUrlByPhotoIdRef = useRef<Map<string, string>>(new Map());
 
   const [srcDoc, setSrcDoc] = useState<string>("");
   const [pngExporting, setPngExporting] = useState(false);
@@ -68,13 +65,7 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
     setExportError(null);
     setHtmlBusy(true);
     try {
-      let map: Map<string, string>;
-      try {
-        map = await ensureReportPhotoBlobUrls(photos, blobUrlByPhotoIdRef.current);
-      } catch (blobErr) {
-        console.warn("Vercel Blob upload unavailable, embedding images as data URLs", blobErr);
-        map = await buildPhotoDataUrlMap(photos);
-      }
+      const map = await buildPhotoUrlMapForPersist(photos);
       const html = injectPhotoBlobUrls(fullHtml, map);
       const blob = new Blob([html], { type: "text/html;charset=utf-8" });
       const url = URL.createObjectURL(blob);
@@ -129,7 +120,7 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
             disabled={!srcDoc || htmlBusy || pngExporting}
             onClick={handleDownloadHtml}
           >
-            {htmlBusy ? "上传照片…" : "下载 HTML"}
+            {htmlBusy ? "准备中…" : "下载 HTML"}
           </button>
         </div>
       </div>
@@ -139,11 +130,10 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
         </p>
       )}
       <p style={{ margin: "0 0 14px", fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>
-        长图 PNG 在浏览器内从预览直接导出（无大文件上传，适配 Vercel）。下载 HTML
-        时照片优先上传到 Vercel Blob 并写入可分享的链接；未配置 Blob 环境变量时回退为内嵌
-        base64。命令行仍可用{" "}
-        <code style={{ fontSize: 12, color: "var(--text)" }}>scripts/generate-long-screenshot.py</code>
-        （本机 Python + Playwright）。
+        导入照片后会自动上传到 Vercel Blob（需配置 <code style={{ fontSize: 12 }}>BLOB_READ_WRITE_TOKEN</code>
+        ）；预览与 PNG 优先使用已同步的 https 链接。下载 HTML 时未同步的照片会内嵌为 base64。
+        命令行仍可用{" "}
+        <code style={{ fontSize: 12, color: "var(--text)" }}>scripts/generate-long-screenshot.py</code>。
       </p>
       <div style={frameOuter}>
         <div style={frameChrome} aria-hidden />

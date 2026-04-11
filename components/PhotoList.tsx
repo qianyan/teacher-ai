@@ -2,21 +2,36 @@
 
 import type { PhotoEntry } from "@/lib/photos/inject-blobs";
 import { logicalKeyFromFilename } from "@/lib/photos/inject-blobs";
-import type { CSSProperties } from "react";
-import { useCallback, useRef, useState } from "react";
+import { uploadPhotoEntryToBlob } from "@/lib/photos/upload-report-blobs";
+import type { CSSProperties, Dispatch, SetStateAction } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PhotoPreviewModal } from "@/components/PhotoPreviewModal";
 
 type Props = {
   photos: PhotoEntry[];
-  onChange: (photos: PhotoEntry[]) => void;
+  onChange: Dispatch<SetStateAction<PhotoEntry[]>>;
 };
 
 function newId(): string {
   return crypto.randomUUID();
 }
 
+async function deleteRemoteBlob(url: string | null): Promise<void> {
+  if (!url) return;
+  try {
+    await fetch("/api/blob/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
 export function PhotoList({ photos, onChange }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const uploadInFlight = useRef(new Set<string>());
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [preview, setPreview] = useState<PhotoEntry | null>(null);
 
@@ -31,12 +46,74 @@ export function PhotoList({ photos, onChange }: Props) {
           file,
           logicalName: file.name,
           blobUrl: URL.createObjectURL(file),
+          remoteUrl: null,
+          remotePathname: null,
+          uploadStatus: "pending",
+          uploadError: null,
+          uploadGeneration: 0,
         });
       }
       onChange(next);
     },
     [photos, onChange],
   );
+
+  useEffect(() => {
+    const pending = photos.filter((p) => p.uploadStatus === "pending");
+    for (const snapshot of pending) {
+      if (uploadInFlight.current.has(snapshot.id)) continue;
+      if (!logicalKeyFromFilename(snapshot.logicalName.trim())) {
+        onChange((prev) =>
+          prev.map((x) =>
+            x.id === snapshot.id && x.uploadStatus === "pending"
+              ? {
+                  ...x,
+                  uploadStatus: "error",
+                  uploadError: "文件名需含前缀+序号，如 探究1.jpg",
+                }
+              : x,
+          ),
+        );
+        continue;
+      }
+      uploadInFlight.current.add(snapshot.id);
+      const gen = snapshot.uploadGeneration;
+      void (async () => {
+        try {
+          onChange((prev) =>
+            prev.map((x) =>
+              x.id === snapshot.id ? { ...x, uploadStatus: "uploading", uploadError: null } : x,
+            ),
+          );
+          const result = await uploadPhotoEntryToBlob(snapshot);
+          onChange((prev) =>
+            prev.map((x) => {
+              if (x.id !== snapshot.id) return x;
+              if (x.uploadGeneration !== gen) return x;
+              return {
+                ...x,
+                remoteUrl: result.url,
+                remotePathname: result.pathname,
+                uploadStatus: "synced",
+                uploadError: null,
+              };
+            }),
+          );
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "上传失败";
+          onChange((prev) =>
+            prev.map((x) => {
+              if (x.id !== snapshot.id) return x;
+              if (x.uploadGeneration !== gen) return x;
+              return { ...x, uploadStatus: "error", uploadError: msg };
+            }),
+          );
+        } finally {
+          uploadInFlight.current.delete(snapshot.id);
+        }
+      })();
+    }
+  }, [photos, onChange]);
 
   const move = (index: number, dir: -1 | 1) => {
     const j = index + dir;
@@ -168,7 +245,7 @@ export function PhotoList({ photos, onChange }: Props) {
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={p.blobUrl}
+                    src={p.remoteUrl ?? p.blobUrl}
                     alt=""
                     style={{
                       width: "100%",
@@ -186,9 +263,21 @@ export function PhotoList({ photos, onChange }: Props) {
                     onChange={(e) => {
                       const name = e.target.value;
                       onChange(
-                        photos.map((x) =>
-                          x.id === p.id ? { ...x, logicalName: name } : x,
-                        ),
+                        photos.map((x) => {
+                          if (x.id !== p.id) return x;
+                          if (name === x.logicalName) return x;
+                          void deleteRemoteBlob(x.remoteUrl);
+                          uploadInFlight.current.delete(x.id);
+                          return {
+                            ...x,
+                            logicalName: name,
+                            remoteUrl: null,
+                            remotePathname: null,
+                            uploadStatus: "pending",
+                            uploadError: null,
+                            uploadGeneration: x.uploadGeneration + 1,
+                          };
+                        }),
                       );
                     }}
                     className="app-input"
@@ -205,6 +294,16 @@ export function PhotoList({ photos, onChange }: Props) {
                     {key
                       ? `映射占位符: data-report-photo="${key}"`
                       : "无法解析前缀+序号，请改为如 特色游戏1.jpg"}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+                    {p.uploadStatus === "pending" && "Blob：排队上传…"}
+                    {p.uploadStatus === "uploading" && "Blob：上传中…"}
+                    {p.uploadStatus === "synced" && p.remoteUrl && "Blob：已同步"}
+                    {p.uploadStatus === "error" && (
+                      <span style={{ color: "var(--danger)" }}>
+                        Blob：{p.uploadError || "同步失败"}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -232,6 +331,8 @@ export function PhotoList({ photos, onChange }: Props) {
                     type="button"
                     style={{ ...smallBtn, color: "var(--danger)" }}
                     onClick={() => {
+                      void deleteRemoteBlob(p.remoteUrl);
+                      uploadInFlight.current.delete(p.id);
                       URL.revokeObjectURL(p.blobUrl);
                       onChange(photos.filter((x) => x.id !== p.id));
                     }}
@@ -246,7 +347,7 @@ export function PhotoList({ photos, onChange }: Props) {
       )}
       {preview && (
         <PhotoPreviewModal
-          imageUrl={preview.blobUrl}
+          imageUrl={preview.remoteUrl ?? preview.blobUrl}
           fileName={preview.logicalName}
           onClose={() => setPreview(null)}
         />

@@ -7,8 +7,16 @@ export type PhotoEntry = {
   file: File;
   /** e.g. 探究1.jpg — must end with digits before extension */
   logicalName: string;
-  /** Stable object URL for previews and injection; revoke when removing the photo */
+  /** Stable object URL for local preview; revoke when removing the photo */
   blobUrl: string;
+  /** Public Vercel Blob URL after upload; null until synced or after rename */
+  remoteUrl: string | null;
+  /** Store pathname from PutBlobResult (for debugging; delete uses url) */
+  remotePathname: string | null;
+  uploadStatus: "pending" | "uploading" | "synced" | "error";
+  uploadError: string | null;
+  /** Incremented on rename so stale upload completions are ignored */
+  uploadGeneration: number;
 };
 
 /** Returns PREFIX:INDEX or null if the name does not match {prefix}{index}. */
@@ -19,12 +27,32 @@ export function logicalKeyFromFilename(name: string): string | null {
   return `${m[1]}:${parseInt(m[2], 10)}`;
 }
 
+/** Prefer HTTPS Blob URL for injection so preview / PNG / download use stable links when synced. */
 export function buildPhotoBlobUrlMap(entries: PhotoEntry[]): Map<string, string> {
   const map = new Map<string, string>();
   for (const e of entries) {
     const key = logicalKeyFromFilename(e.logicalName.trim());
     if (!key) continue;
-    map.set(key, e.blobUrl);
+    map.set(key, e.remoteUrl ?? e.blobUrl);
+  }
+  return map;
+}
+
+/**
+ * For downloaded HTML: use Blob URL when available, else embed as data URL (offline-capable).
+ */
+export async function buildPhotoUrlMapForPersist(
+  entries: PhotoEntry[],
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  for (const e of entries) {
+    const key = logicalKeyFromFilename(e.logicalName.trim());
+    if (!key) continue;
+    if (e.remoteUrl) {
+      map.set(key, e.remoteUrl);
+    } else {
+      map.set(key, await fileToDataUrl(e.file));
+    }
   }
   return map;
 }
