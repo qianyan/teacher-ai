@@ -30,7 +30,9 @@ export async function captureIframeDocumentAsPngBlob(
 
   const pr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
   const blob = await toBlob(doc.documentElement, {
-    cacheBust: true,
+    // Must be false: cacheBust appends ?t=… to every URL, which breaks blob: image src
+    // (fetch fails with URLs like blob:https://origin/uuid?123 — see html-to-image dataurl.ts).
+    cacheBust: false,
     pixelRatio: pr,
     backgroundColor: "#ffffff",
   });
