@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INFANT D Weekly Newsletter</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif; background: #FFFBF5; width: 1080px; margin: 0 auto; }
+        .container { width: 1080px; position: relative; overflow: hidden; }
+        :root {
+            --color-red: #F4535A; --color-gold: #FEBE5E; --color-green: #9FB288; --color-cream: #FDF3C0;
+            --color-bg: #FFFBF5; --color-white: #FFFFFF; --color-text: #2D3748; --color-text-light: #718096;
+        }
+        .header { min-height: 600px; background: var(--color-cream); position: relative; overflow: hidden; }
+
+        /* 卡通人物装饰 */
+        .character-decoration { position: absolute; }
+        .char-1 { top: 60px; left: 80px; }
+        .char-2 { top: 80px; right: 100px; }
+        .char-3 { bottom: 120px; left: 120px; }
+        .char-4 { bottom: 100px; right: 150px; }
+
+        .star-decoration { position: absolute; opacity: 0.2; }
+        .star-1 { top: 80px; left: 100px; } .star-2 { top: 150px; right: 120px; } .star-3 { top: 300px; left: 200px; }
+
+        .circle-decoration { position: absolute; border-radius: 50%; }
+        .circle-1 { width: 200px; height: 200px; background: var(--color-red); top: -80px; right: -50px; opacity: 0.2; }
+        .circle-2 { width: 120px; height: 120px; background: var(--color-gold); bottom: 100px; left: -40px; opacity: 0.4; }
+        .circle-3 { width: 80px; height: 80px; background: var(--color-green); top: 250px; left: 450px; opacity: 0.3; }
+        .header-wave { position: absolute; bottom: 0; left: 0; width: 100%; height: 70px; }
+        .header-content { position: relative; z-index: 10; padding: 100px 90px 70px; text-align: center; }
+        .main-title { margin-bottom: 15px; }
+        .title-en { font-size: 95px; font-weight: 800; color: var(--color-text); letter-spacing: 5px; line-height: 1.1; }
+        .title-en .name { font-size: 110px; }
+        .title-sub { font-size: 40px; font-weight: 600; color: var(--color-gold); letter-spacing: 10px; margin-top: 8px; }
+        .sub-title { font-size: 28px; font-weight: 500; color: var(--color-red); margin-bottom: 35px; letter-spacing: 2px; }
+        .intro-text { background: var(--color-white); border-radius: 24px; padding: 38px 48px; margin: 0 auto; max-width: 860px; box-shadow: 0 10px 40px rgba(244, 83, 90, 0.15); border-left: 6px solid var(--color-red); }
+        .intro-text p { font-size: 18px; color: var(--color-text); line-height: 1.9; margin: 0; text-align: justify; font-weight: 400; }
+        .week-info { display: inline-flex; align-items: center; justify-content: center; gap: 20px; margin-top: 35px; }
+        .info-badge { background: var(--color-red); padding: 14px 40px; border-radius: 50px; font-size: 20px; font-weight: 600; color: var(--color-white); box-shadow: 0 5px 20px rgba(244, 83, 90, 0.3); letter-spacing: 1px; }
+        .section { padding: 50px 90px; position: relative; }
+        .section-header { display: flex; align-items: center; gap: 20px; margin-bottom: 28px; }
+        .section-icon { width: 58px; height: 58px; background: var(--color-red); border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0; box-shadow: 0 4px 15px rgba(244, 83, 90, 0.2); }
+        .section-title { font-size: 36px; font-weight: 700; color: var(--color-red); letter-spacing: 2px; }
+        .section-subtitle { font-size: 14px; color: var(--color-green); margin-top: 5px; font-weight: 400; }
+        .content-box { background: var(--color-white); border-radius: 20px; padding: 32px; box-shadow: 0 4px 25px rgba(253, 243, 192, 0.5); margin-bottom: 18px; }
+        .content-box p { font-size: 17px; line-height: 1.9; color: var(--color-text); margin-bottom: 14px; font-weight: 400; }
+        .content-box strong { color: var(--color-red); font-weight: 600; }
+        .highlight-box { background: var(--color-gold); border-radius: 18px; padding: 24px 32px; margin-top: 22px; }
+        .highlight-box p { font-size: 16px; color: var(--color-text); line-height: 1.8; margin: 0; font-weight: 500; }
+        .photo-grid { display: grid; gap: 16px; margin-top: 25px; }
+        .photo-grid.grid-2 { grid-template-columns: repeat(2, 1fr); }
+        .photo-grid.grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .photo-grid.grid-4 { grid-template-columns: repeat(4, 1fr); }
+        /* 横版照片：统一比例，6 张 3×2、8 张 4×2 */
+        .photo-item { position: relative; border-radius: 16px; overflow: hidden; box-shadow: 0 5px 20px rgba(244, 83, 90, 0.1); aspect-ratio: 16 / 9; }
+        .photo-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .list-item { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 16px; padding: 20px; background: var(--color-bg); border-radius: 16px; border-left: 4px solid var(--color-red); }
+        .list-icon { font-size: 24px; flex-shrink: 0; }
+        .list-content h4 { font-size: 19px; font-weight: 600; color: var(--color-red); margin-bottom: 8px; }
+        .list-content p { font-size: 16px; color: var(--color-text); line-height: 1.8; margin: 0; font-weight: 400; }
+        .tips-section { background: var(--color-cream); padding: 60px 90px; position: relative; overflow: hidden; }
+        .tips-section::before { content: ''; position: absolute; top: -60px; right: -60px; width: 200px; height: 200px; background: var(--color-red); border-radius: 50%; opacity: 0.15; }
+        .tips-title { font-size: 34px; font-weight: 700; color: var(--color-text); text-align: center; margin-bottom: 40px; }
+        .tips-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 32px; }
+        .tip-card { background: var(--color-white); border-radius: 20px; padding: 26px; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08); }
+        .tip-card h4 { font-size: 18px; font-weight: 600; color: var(--color-red); margin-bottom: 10px; }
+        .tip-card p { font-size: 15px; color: var(--color-text); line-height: 1.8; margin: 0; font-weight: 400; }
+        .closing-section { background: var(--color-white); border-radius: 20px; padding: 32px; text-align: center; border: 3px solid var(--color-red); }
+        .closing-section h3 { font-size: 24px; font-weight: 700; color: var(--color-red); margin-bottom: 12px; }
+        .closing-section p { font-size: 16px; color: var(--color-text); line-height: 1.9; margin: 0; font-weight: 400; }
+        .footer { height: 65px; background: var(--color-red); display: flex; align-items: center; justify-content: center; }
+        .footer-star { font-size: 20px; margin: 0 8px; color: var(--color-white); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <!-- 卡通小朋友装饰 -->
+            <div class="character-decoration char-1">
+                <svg width="70" height="90" viewBox="0 0 70 90">
+                    <!-- 身体 -->
+                    <ellipse cx="35" cy="65" rx="22" ry="20" fill="#F4535A"/>
+                    <!-- 头 -->
+                    <circle cx="35" cy="28" r="22" fill="#FFE4C4"/>
+                    <!-- 眼睛 -->
+                    <circle cx="28" cy="26" r="3" fill="#2D3748"/>
+                    <circle cx="42" cy="26" r="3" fill="#2D3748"/>
+                    <!-- 腮红 -->
+                    <circle cx="25" cy="34" r="4" fill="#FF9999" opacity="0.6"/>
+                    <circle cx="45" cy="34" r="4" fill="#FF9999" opacity="0.6"/>
+                    <!-- 微笑 -->
+                    <path d="M28 38 Q35 45 42 38" stroke="#2D3748" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <!-- 头发 -->
+                    <ellipse cx="35" cy="14" rx="18" ry="8" fill="#5D4037"/>
+                    <circle cx="20" cy="18" r="6" fill="#5D4037"/>
+                    <circle cx="50" cy="18" r="6" fill="#5D4037"/>
+                </svg>
+            </div>
+
+            <div class="character-decoration char-2">
+                <svg width="65" height="88" viewBox="0 0 65 88">
+                    <!-- 裙子 -->
+                    <ellipse cx="32" cy="58" rx="25" ry="28" fill="#9FB288"/>
+                    <!-- 头 -->
+                    <circle cx="32" cy="26" r="20" fill="#FFE4C4"/>
+                    <!-- 头发 (双马尾) -->
+                    <circle cx="16" cy="16" r="8" fill="#FEBE5E"/>
+                    <circle cx="49" cy="16" r="8" fill="#FEBE5E"/>
+                    <ellipse cx="32" cy="12" rx="15" ry="6" fill="#FEBE5E"/>
+                    <!-- 眼睛 -->
+                    <circle cx="25" cy="24" r="3" fill="#2D3748"/>
+                    <circle cx="39" cy="24" r="3" fill="#2D3748"/>
+                    <!-- 眨毛 -->
+                    <path d="M22 21 L25 23 M36 23 L39 21" stroke="#2D3748" stroke-width="1.5" fill="none"/>
+                    <!-- 微笑 -->
+                    <path d="M26 32 Q32 38 38 32" stroke="#2D3748" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <!-- 腮红 -->
+                    <circle cx="22" cy="30" r="4" fill="#FF9999" opacity="0.5"/>
+                    <circle cx="42" cy="30" r="4" fill="#FF9999" opacity="0.5"/>
+                </svg>
+            </div>
+
+            <div class="character-decoration char-3">
+                <svg width="68" height="92" viewBox="0 0 68 92">
+                    <!-- 身体 -->
+                    <ellipse cx="34" cy="68" rx="24" ry="22" fill="#FEBE5E"/>
+                    <!-- 头 -->
+                    <circle cx="34" cy="28" r="21" fill="#FFE4C4"/>
+                    <!-- 眼睛 -->
+                    <circle cx="26" cy="26" r="3" fill="#2D3748"/>
+                    <circle cx="42" cy="26" r="3" fill="#2D3748"/>
+                    <!-- 腮红 -->
+                    <circle cx="23" cy="34" r="4" fill="#FF9999" opacity="0.6"/>
+                    <circle cx="45" cy="34" r="4" fill="#FF9999" opacity="0.6"/>
+                    <!-- 大笑 -->
+                    <path d="M26 36 Q34 44 42 36" stroke="#2D3748" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <!-- 牙齿 -->
+                    <rect x="30" y="38" width="8" height="6" rx="1" fill="white"/>
+                    <!-- 头发 -->
+                    <ellipse cx="34" cy="14" rx="17" ry="7" fill="#5D4037"/>
+                    <circle cx="18" cy="12" r="7" fill="#5D4037"/>
+                    <circle cx="50" cy="12" r="7" fill="#5D4037"/>
+                </svg>
+            </div>
+
+            <div class="character-decoration char-4">
+                <svg width="62" height="85" viewBox="0 0 62 85">
+                    <!-- 连衣裙 -->
+                    <ellipse cx="31" cy="55" rx="20" ry="26" fill="#F4535A"/>
+                    <!-- 领口 -->
+                    <path d="M26 45 Q31 55 36 45" stroke="white" stroke-width="2" fill="none"/>
+                    <!-- 头 -->
+                    <circle cx="31" cy="24" r="19" fill="#FFE4C4"/>
+                    <!-- 眼睛 -->
+                    <circle cx="24" cy="22" r="3" fill="#2D3748"/>
+                    <circle cx="38" cy="22" r="3" fill="#2D3748"/>
+                    <!-- 睫毛 -->
+                    <path d="M21 19 L24 21 M37 21 L40 19" stroke="#2D3748" stroke-width="1.5" fill="none"/>
+                    <!-- 腮红 -->
+                    <circle cx="21" cy="28" r="4" fill="#FF9999" opacity="0.5"/>
+                    <circle cx="41" cy="28" r="4" fill="#FF9999" opacity="0.5"/>
+                    <!-- 微笑 -->
+                    <path d="M24 32 Q31 38 38 32" stroke="#2D3748" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <!-- 发髻 -->
+                    <circle cx="31" cy="10" r="10" fill="#5D4037"/>
+                    <circle cx="42" cy="8" r="6" fill="#5D4037"/>
+                    <circle cx="20" cy="8" r="6" fill="#5D4037"/>
+                    <!-- 蝴蝶结 -->
+                    <circle cx="31" cy="6" r="4" fill="#F4535A"/>
+                </svg>
+            </div>
+
+            <div class="circle-decoration circle-1"></div>
+            <div class="circle-decoration circle-2"></div>
+            <div class="circle-decoration circle-3"></div>
+            <svg class="header-wave" viewBox="0 0 1440 70" preserveAspectRatio="none">
+                <path fill="#FFFBF5" d="M0,35 C240,70 480,0 720,35 C960,70 1200,0 1440,35 L1440,70 L0,70 Z"/>
+            </svg>
+            <div class="header-content">
+                <div class="main-title">
+                    <div class="title-en">
+                        <span class="name">Infant D</span>
+                    </div>
+                    <div class="title-sub">BiWeekly Newsletter</div>
+                </div>
+                <!-- 每期仅替换下面 subtitle 内的子主题，比如 "从家庭走向集体的第一步"-->
+                <div class="sub-title">从家庭走向集体的第一步</div>
+                <div class="intro-text">
+                    <!-- 每期仅替换下面 intro-text 内的正文，比如 "宝贝入园的两周，是他们从家庭走向集体的第一步。我们见证了太多的"第一次"：第一次离开爸爸妈妈、第一次和这么多小伙伴一起吃饭睡觉、第一次在教室里放声大笑……虽然只有短短10天，但每一个宝贝都在用自己的节奏适应着这个新环境。"-->
+                    <p>宝贝入园的两周，是他们从家庭走向集体的第一步。我们见证了太多的"第一次"：第一次离开爸爸妈妈、第一次和这么多小伙伴一起吃饭睡觉、第一次在教室里放声大笑……虽然只有短短10天，但每一个宝贝都在用自己的节奏适应着这个新环境。</p>
+                </div>
+                <div class="week-info">
+                    <!-- 每期仅替换 span：本双周覆盖的「中国大陆工作日」起止（Asia/Shanghai，周一至周五并排除法定节假日等；详见 SKILL.md） -->
+                    <span class="info-badge">2026.3.2 - 2026.3.13</span>
+                </div>
+            </div>
+        </div>
