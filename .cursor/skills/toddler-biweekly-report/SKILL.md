@@ -5,7 +5,7 @@ description: Builds self-contained cream/soft toddler class biweekly newsletter 
 
 # Toddler Biweekly Report (HTML → 长图 PNG)
 
-**Pipeline:** self-contained `.html` (intermediate) → **`@scripts/generate-long-screenshot.py`** → **final `*.png` (long screenshot, 1080px wide).** PDF is optional if the user asks for a print file; the default **final artifact for sharing is the image.**
+**Pipeline:** self-contained `.html` (intermediate) → **`@scripts/generate-long-screenshot.py`** → **final `*.png` (long screenshot, 1080px wide).**The default **final artifact for sharing is the image.**
 
 ## Locked chrome (do not edit)
 
@@ -26,6 +26,11 @@ Only these regions are generated from user input:
 2. **`.tips-section`** — `.tips-title`, `.tips-grid` / `.tip-card`s, and `.closing-section` **only** from what the user provided (or explicitly asked to omit). Same markup classes as the reference.
 
 **Alternating section backgrounds:** first section after the header uses `background: var(--color-bg)`; then alternate `#fff` and `var(--color-bg)`.
+
+### Section titles and `.tips-title`
+
+- **Color:** `.tips-title` matches **`.section-title`** — `color: var(--color-red)` and `letter-spacing: 2px` (see [reference-shell.html](reference-shell.html)). Do not use `var(--color-text)` for `.tips-title`.
+- **No numbering:** Do **not** prefix `.section-title` or `.tips-title` with Chinese ordinals (**一、二、三、** …). Section order is shown by layout only.
 
 ## Required inputs
 
@@ -101,12 +106,10 @@ python3 scripts/generate-long-screenshot.py path/to/toddler-biweekly-report-YYYY
 
 3. **Verify:** open the PNG; confirm no clipped footer, no blank tail, and photos load (HTML uses absolute `file://` image paths on the machine that runs the script).
 
-4. **PDF (optional):** only if explicitly needed — e.g. Chrome `--print-to-pdf` per [.claude/skills/html-to-pdf.md](../../../.claude/skills/html-to-pdf.md). Do **not** treat PDF as the default final output when this skill applies.
-
 ## Checklist
 
 - [ ] `reference-shell.html` head + header unchanged except `.info-badge` (中国大陆工作日起止).
-- [ ] Sections + tips match `body_content` strictly; no extra boilerplate sections.
+- [ ] Sections + tips match `body_content` strictly; no extra boilerplate sections; **no 一、二、…** on `.section-title` / `.tips-title`; `.tips-title` red like `.section-title`.
 - [ ] Photo grids: 6 → `grid-3`, 8 → `grid-4`; landscape; **no** `.photo-label`.
 - [ ] Paths absolute; orphan/missing files documented if applicable.
 - [ ] **Long PNG generated** with `scripts/generate-long-screenshot.py` and checked visually.

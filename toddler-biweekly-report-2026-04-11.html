@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INFANT D Weekly Newsletter</title>
+    <!-- Photos: ~/Downloads/11Apr — 探究1–8, 特色游戏1–6, 户外运动1–6, 生活自理1–6, 特色活动1–8. 户外运动3 file: 户外运动3 .jpg (space before extension). -->
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif; background: #FFFBF5; width: 1080px; margin: 0 auto; }
+        .container { width: 1080px; position: relative; overflow: hidden; }
+        :root {
+            --color-red: #F4535A; --color-gold: #FEBE5E; --color-green: #9FB288; --color-cream: #FDF3C0;
+            --color-bg: #FFFBF5; --color-white: #FFFFFF; --color-text: #2D3748; --color-text-light: #718096;
+        }
+        .header { min-height: 600px; background: var(--color-cream); position: relative; overflow: hidden; }
+
+        /* 卡通人物装饰 */
+        .character-decoration { position: absolute; }
+        .char-1 { top: 60px; left: 80px; }
+        .char-2 { top: 80px; right: 100px; }
+        .char-3 { bottom: 120px; left: 120px; }
+        .char-4 { bottom: 100px; right: 150px; }
+
+        .star-decoration { position: absolute; opacity: 0.2; }
+        .star-1 { top: 80px; left: 100px; } .star-2 { top: 150px; right: 120px; } .star-3 { top: 300px; left: 200px; }
+
+        .circle-decoration { position: absolute; border-radius: 50%; }
+        .circle-1 { width: 200px; height: 200px; background: var(--color-red); top: -80px; right: -50px; opacity: 0.2; }
+        .circle-2 { width: 120px; height: 120px; background: var(--color-gold); bottom: 100px; left: -40px; opacity: 0.4; }
+        .circle-3 { width: 80px; height: 80px; background: var(--color-green); top: 250px; left: 450px; opacity: 0.3; }
+        .header-wave { position: absolute; bottom: 0; left: 0; width: 100%; height: 70px; }
+        .header-content { position: relative; z-index: 10; padding: 100px 90px 70px; text-align: center; }
+        .main-title { margin-bottom: 15px; }
+        .title-en { font-size: 95px; font-weight: 800; color: var(--color-text); letter-spacing: 5px; line-height: 1.1; }
+        .title-en .name { font-size: 110px; }
+        .title-sub { font-size: 40px; font-weight: 600; color: var(--color-gold); letter-spacing: 10px; margin-top: 8px; }
+        .sub-title { font-size: 28px; font-weight: 500; color: var(--color-red); margin-bottom: 35px; letter-spacing: 2px; }
+        .intro-text { background: var(--color-white); border-radius: 24px; padding: 38px 48px; margin: 0 auto; max-width: 860px; box-shadow: 0 10px 40px rgba(244, 83, 90, 0.15); border-left: 6px solid var(--color-red); }
+        .intro-text p { font-size: 18px; color: var(--color-text); line-height: 1.9; margin: 0; text-align: justify; font-weight: 400; }
+        .intro-text p + p { margin-top: 14px; }
+        .intro-text strong { color: var(--color-red); font-weight: 600; }
+        .week-info { display: inline-flex; align-items: center; justify-content: center; gap: 20px; margin-top: 35px; }
+        .info-badge { background: var(--color-red); padding: 14px 40px; border-radius: 50px; font-size: 20px; font-weight: 600; color: var(--color-white); box-shadow: 0 5px 20px rgba(244, 83, 90, 0.3); letter-spacing: 1px; }
+        .section { padding: 50px 90px; position: relative; }
+        .section-header { display: flex; align-items: center; gap: 20px; margin-bottom: 28px; }
+        .section-icon { width: 58px; height: 58px; background: var(--color-red); border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0; box-shadow: 0 4px 15px rgba(244, 83, 90, 0.2); }
+        .section-title { font-size: 36px; font-weight: 700; color: var(--color-red); letter-spacing: 2px; }
+        .section-subtitle { font-size: 14px; color: var(--color-green); margin-top: 5px; font-weight: 400; }
+        .content-box { background: var(--color-white); border-radius: 20px; padding: 32px; box-shadow: 0 4px 25px rgba(253, 243, 192, 0.5); margin-bottom: 18px; }
+        .content-box p { font-size: 17px; line-height: 1.9; color: var(--color-text); margin-bottom: 14px; font-weight: 400; }
+        /* 下层子标题：金；区块主标题见 .section-title / .section-subtitle，保持红/绿不变 */
+        .content-box strong { color: var(--color-gold); font-weight: 600; }
+        .content-box h4 { font-size: 19px; font-weight: 600; color: var(--color-gold); margin: 0 0 10px; }
+        .highlight-box { background: var(--color-gold); border-radius: 18px; padding: 24px 32px; margin-top: 22px; }
+        .highlight-box p { font-size: 16px; color: var(--color-text); line-height: 1.8; margin: 0; font-weight: 500; }
+        /* 金底上不用金色 strong，保持红字可读 */
+        .highlight-box strong { color: var(--color-red); font-weight: 600; }
+        .photo-grid { display: grid; gap: 16px; margin-top: 25px; }
+        .photo-grid.grid-2 { grid-template-columns: repeat(2, 1fr); }
+        .photo-grid.grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .photo-grid.grid-4 { grid-template-columns: repeat(4, 1fr); }
+        /* 横版照片：统一比例，6 张 3×2、8 张 4×2 */
+        .photo-item { position: relative; border-radius: 16px; overflow: hidden; box-shadow: 0 5px 20px rgba(244, 83, 90, 0.1); aspect-ratio: 16 / 9; }
+        .photo-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .list-item { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 16px; padding: 20px; background: var(--color-bg); border-radius: 16px; border-left: 4px solid var(--color-red); }
+        .list-icon { font-size: 24px; flex-shrink: 0; }
+        .list-content h4 { font-size: 19px; font-weight: 600; color: var(--color-gold); margin-bottom: 8px; }
+        .list-content p { font-size: 16px; color: var(--color-text); line-height: 1.8; margin: 0; font-weight: 400; }
+        .tips-section { background: var(--color-cream); padding: 60px 90px; position: relative; overflow: hidden; }
+        .tips-section::before { content: ''; position: absolute; top: -60px; right: -60px; width: 200px; height: 200px; background: var(--color-red); border-radius: 50%; opacity: 0.15; }
+        /* 与 .section-title 同为章节红，不加序号时视觉层级一致 */
+        .tips-title { font-size: 34px; font-weight: 700; color: var(--color-red); letter-spacing: 2px; text-align: center; margin-bottom: 40px; }
+        .tips-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 32px; }
+        .tip-card { background: var(--color-white); border-radius: 20px; padding: 26px; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08); }
+        .tip-card h4 { font-size: 18px; font-weight: 600; color: var(--color-gold); margin-bottom: 10px; }
+        .tip-card p { font-size: 15px; color: var(--color-text); line-height: 1.8; margin: 0; font-weight: 400; }
+        .closing-section { background: var(--color-white); border-radius: 20px; padding: 32px; text-align: center; border: 3px solid var(--color-red); }
+        .closing-section h3 { font-size: 24px; font-weight: 700; color: var(--color-red); margin-bottom: 12px; }
+        .closing-section p { font-size: 16px; color: var(--color-text); line-height: 1.9; margin: 0; font-weight: 400; }
+        .footer { height: 65px; background: var(--color-red); display: flex; align-items: center; justify-content: center; }
+        .footer-star { font-size: 20px; margin: 0 8px; color: var(--color-white); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <!-- 卡通小朋友装饰 -->
+            <div class="character-decoration char-1">
+                <svg width="70" height="90" viewBox="0 0 70 90">
+                    <!-- 身体 -->
+                    <ellipse cx="35" cy="65" rx="22" ry="20" fill="#F4535A"/>
+                    <!-- 头 -->
+                    <circle cx="35" cy="28" r="22" fill="#FFE4C4"/>
+                    <!-- 眼睛 -->
+                    <circle cx="28" cy="26" r="3" fill="#2D3748"/>
+                    <circle cx="42" cy="26" r="3" fill="#2D3748"/>
+                    <!-- 腮红 -->
+                    <circle cx="25" cy="34" r="4" fill="#FF9999" opacity="0.6"/>
+                    <circle cx="45" cy="34" r="4" fill="#FF9999" opacity="0.6"/>
+                    <!-- 微笑 -->
+                    <path d="M28 38 Q35 45 42 38" stroke="#2D3748" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <!-- 头发 -->
+                    <ellipse cx="35" cy="14" rx="18" ry="8" fill="#5D4037"/>
+                    <circle cx="20" cy="18" r="6" fill="#5D4037"/>
+                    <circle cx="50" cy="18" r="6" fill="#5D4037"/>
+                </svg>
+            </div>
+
+            <div class="character-decoration char-2">
+                <svg width="65" height="88" viewBox="0 0 65 88">
+                    <!-- 裙子 -->
+                    <ellipse cx="32" cy="58" rx="25" ry="28" fill="#9FB288"/>
+                    <!-- 头 -->
+                    <circle cx="32" cy="26" r="20" fill="#FFE4C4"/>
+                    <!-- 头发 (双马尾) -->
+                    <circle cx="16" cy="16" r="8" fill="#FEBE5E"/>
+                    <circle cx="49" cy="16" r="8" fill="#FEBE5E"/>
+                    <ellipse cx="32" cy="12" rx="15" ry="6" fill="#FEBE5E"/>
+                    <!-- 眼睛 -->
+                    <circle cx="25" cy="24" r="3" fill="#2D3748"/>
+                    <circle cx="39" cy="24" r="3" fill="#2D3748"/>
+                    <!-- 眨毛 -->
+                    <path d="M22 21 L25 23 M36 23 L39 21" stroke="#2D3748" stroke-width="1.5" fill="none"/>
+                    <!-- 微笑 -->
+                    <path d="M26 32 Q32 38 38 32" stroke="#2D3748" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <!-- 腮红 -->
+                    <circle cx="22" cy="30" r="4" fill="#FF9999" opacity="0.5"/>
+                    <circle cx="42" cy="30" r="4" fill="#FF9999" opacity="0.5"/>
+                </svg>
+            </div>
+
+            <div class="character-decoration char-3">
+                <svg width="68" height="92" viewBox="0 0 68 92">
+                    <!-- 身体 -->
+                    <ellipse cx="34" cy="68" rx="24" ry="22" fill="#FEBE5E"/>
+                    <!-- 头 -->
+                    <circle cx="34" cy="28" r="21" fill="#FFE4C4"/>
+                    <!-- 眼睛 -->
+                    <circle cx="26" cy="26" r="3" fill="#2D3748"/>
+                    <circle cx="42" cy="26" r="3" fill="#2D3748"/>
+                    <!-- 腮红 -->
+                    <circle cx="23" cy="34" r="4" fill="#FF9999" opacity="0.6"/>
+                    <circle cx="45" cy="34" r="4" fill="#FF9999" opacity="0.6"/>
+                    <!-- 大笑 -->
+                    <path d="M26 36 Q34 44 42 36" stroke="#2D3748" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <!-- 牙齿 -->
+                    <rect x="30" y="38" width="8" height="6" rx="1" fill="white"/>
+                    <!-- 头发 -->
+                    <ellipse cx="34" cy="14" rx="17" ry="7" fill="#5D4037"/>
+                    <circle cx="18" cy="12" r="7" fill="#5D4037"/>
+                    <circle cx="50" cy="12" r="7" fill="#5D4037"/>
+                </svg>
+            </div>
+
+            <div class="character-decoration char-4">
+                <svg width="62" height="85" viewBox="0 0 62 85">
+                    <!-- 连衣裙 -->
+                    <ellipse cx="31" cy="55" rx="20" ry="26" fill="#F4535A"/>
+                    <!-- 领口 -->
+                    <path d="M26 45 Q31 55 36 45" stroke="white" stroke-width="2" fill="none"/>
+                    <!-- 头 -->
+                    <circle cx="31" cy="24" r="19" fill="#FFE4C4"/>
+                    <!-- 眼睛 -->
+                    <circle cx="24" cy="22" r="3" fill="#2D3748"/>
+                    <circle cx="38" cy="22" r="3" fill="#2D3748"/>
+                    <!-- 睫毛 -->
+                    <path d="M21 19 L24 21 M37 21 L40 19" stroke="#2D3748" stroke-width="1.5" fill="none"/>
+                    <!-- 腮红 -->
+                    <circle cx="21" cy="28" r="4" fill="#FF9999" opacity="0.5"/>
+                    <circle cx="41" cy="28" r="4" fill="#FF9999" opacity="0.5"/>
+                    <!-- 微笑 -->
+                    <path d="M24 32 Q31 38 38 32" stroke="#2D3748" stroke-width="2" fill="none" stroke-linecap="round"/>
+                    <!-- 发髻 -->
+                    <circle cx="31" cy="10" r="10" fill="#5D4037"/>
+                    <circle cx="42" cy="8" r="6" fill="#5D4037"/>
+                    <circle cx="20" cy="8" r="6" fill="#5D4037"/>
+                    <!-- 蝴蝶结 -->
+                    <circle cx="31" cy="6" r="4" fill="#F4535A"/>
+                </svg>
+            </div>
+
+            <div class="circle-decoration circle-1"></div>
+            <div class="circle-decoration circle-2"></div>
+            <div class="circle-decoration circle-3"></div>
+            <svg class="header-wave" viewBox="0 0 1440 70" preserveAspectRatio="none">
+                <path fill="#FFFBF5" d="M0,35 C240,70 480,0 720,35 C960,70 1200,0 1440,35 L1440,70 L0,70 Z"/>
+            </svg>
+            <div class="header-content">
+                <div class="main-title">
+                    <div class="title-en">
+                        <span class="name">Infant D</span>
+                    </div>
+                    <div class="title-sub">BiWeekly Newsletter</div>
+                </div>
+                <div class="sub-title">🎨 我们是小小艺术家+小小探险家！</div>
+                <div class="intro-text">
+                    <p>亲爱的家长朋友们：</p>
+                    <p>大家好！✨</p>
+                    <p>过去的两周，我们的「色彩与形状」探究之旅进入了更加精彩的阶段。孩子们不再只是发现和分类，而是开始像真正的艺术家一样，用色彩和形状去<strong>混合、创造、表达</strong>。我们认识了草间弥生的波点、蒙德里安的格子，用小手、小脚甚至光影去感受艺术的魅力。</p>
+                    <p>更令人难忘的是，我们一起去天府公园春游啦！在大自然的怀抱里，孩子们玩起了保鲜膜画和树叶喷画。此外，孩子们还挑战了平衡木、跳箱、波波球池、绳梯跳跃……每一天都充满惊喜，每一天都在悄悄长大。</p>
+                </div>
+                <div class="week-info">
+                    <span class="info-badge">2026.3.30 - 2026.4.10</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 一、探究开展过程 -->
+        <div class="section" style="background: var(--color-bg);">
+            <div class="section-header">
+                <div class="section-icon">🎨</div>
+                <div>
+                    <div class="section-title">探究开展过程：从「发现」到「创造」</div>
+                    <div class="section-subtitle">Inquiry · Shapes, colors &amp; expression</div>
+                </div>
+            </div>
+            <div class="content-box">
+                <p><strong>本周探究</strong></p>
+                <p>这两周，孩子们完成了从「认识色彩形状」到「用艺术表达自己」的跨越。</p>
+                <p><strong>第五周</strong>，我们聚焦形状匹配与形状组合。孩子们将形状宝宝与形状小雪人进行匹配；用形状积木拼搭出房子、公路；还尝试用颜色表达情绪——「红色代表开心，蓝色代表安静」。</p>
+                <p><strong>第六周</strong>，我们像真正的艺术家一样创作。孩子们欣赏了蒙德里安的格子画，用海绵印章将颜色填充在贴好胶带的格子纸中；探索了光影的奥秘——手电筒一照，在墙上、地上、身上投出圆形、三角形、月亮形、正方形的影子，孩子们惊喜地叫出声来。</p>
+            </div>
+            <div class="photo-grid grid-4">
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/探究1.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/探究2.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/探究3.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/探究4.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/探究5.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/探究6.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/探究7.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/探究8.jpg" alt=""></div>
+            </div>
+
+            <div class="content-box" style="margin-top: 28px;">
+                <p><strong>本周特色游戏：在玩中学，在学中乐</strong></p>
+                <p>除了探究课程，孩子们还沉浸在几个超受欢迎的特色游戏中：</p>
+            </div>
+            <div class="list-item">
+                <div class="list-icon">🥒</div>
+                <div class="list-content">
+                    <h4>生活操作区——切真实蔬菜</h4>
+                    <p>我们提供了安全的儿童切刀、砧板，以及每日真实蔬果。孩子们学习「按住食物、慢慢切」的动作，观察蔬菜的内部形状和颜色，切好后还能闻到香味。</p>
+                </div>
+            </div>
+            <div class="list-item">
+                <div class="list-icon">👩‍⚕️</div>
+                <div class="list-content">
+                    <h4>角色扮演区——小医生看病</h4>
+                    <p>投放了医生玩具套装（听诊器、针筒、体温枪等）。孩子们轮流当「医生」和「病人」，有的给玩偶打针，有的给小伙伴听心跳。「你哪里不舒服呀？」「我来给你量体温。」在游戏中，学习关爱与沟通，缓解对医院和医生的恐惧，在角色互换中发展共情能力。</p>
+                </div>
+            </div>
+            <div class="list-item">
+                <div class="list-icon">🧡</div>
+                <div class="list-content">
+                    <h4>感官区——大米感官区、太空沙</h4>
+                    <p>大米感官区、太空沙是最近的大热门！孩子们不停地舀米，用手捏、压、切、堆，感受沙子的流动与可塑性。有的做了「小螃蟹」，有的做了「小海星」。沙子在手中流淌的感觉，让每个孩子都专注而平静。</p>
+                </div>
+            </div>
+            <div class="list-item">
+                <div class="list-icon">🔴</div>
+                <div class="list-content">
+                    <h4>波点墙——向草间弥生致敬</h4>
+                    <p>我们在班级墙面设置了一块「波点墙」，提供各色圆形波点贴纸。孩子们自由地将波点贴在墙上，可以按颜色排列，也可以随意组合。感受「波点」这种艺术形式的节奏美；练习手部粘贴动作；合作完成一面巨大的集体作品——每个孩子都是天生的艺术家。</p>
+                </div>
+            </div>
+            <div class="highlight-box">
+                <p>💡 <strong>老师说：</strong>这些特色游戏看似是「玩」，其实是精心设计的「学习」。每一个切的动作、每一次听诊、每一把沙子、每一个波点，都在悄悄地发展孩子的能力。</p>
+            </div>
+            <div class="photo-grid grid-3">
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/特色游戏1.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/特色游戏2.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/特色游戏3.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/特色游戏4.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/特色游戏5.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/特色游戏6.jpg" alt=""></div>
+            </div>
+        </div>
+
+        <!-- 二、户外运动 -->
+        <div class="section" style="background: #fff;">
+            <div class="section-header">
+                <div class="section-icon">🏃</div>
+                <div>
+                    <div class="section-title">户外运动版块：挑战自我，勇敢成长</div>
+                    <div class="section-subtitle">Outdoor play · Balance, jumps &amp; teamwork</div>
+                </div>
+            </div>
+            <div class="content-box">
+                <p>这两周的运动活动更加丰富，我们增加了平衡练习、跳箱大循环、波波球+绳梯跳跃大循环，孩子们的体能和勇气都得到了锻炼。</p>
+                <p><strong>户外运动中的「隐藏收获」</strong></p>
+                <p><strong>平衡练习：</strong>从需要老师牵手，到双手侧平举自己走完平衡。小身体里的大平衡，一天比一天稳。</p>
+                <p><strong>跳箱大循环：</strong>助跑、撑箱、跳板跳——第一次尝试时，有的孩子站在箱前犹豫，在跳板上不知如何借力跳跃而上，在老师的鼓励下和一次次的观察和尝试下，逐渐可以尝试借助跳板的力跳跃而上。</p>
+                <p><strong>波波球+绳梯：</strong>在波波球上弹弹走，再快速通过绳梯完成双脚连续向前跳跳。孩子们玩得满头大汗却乐此不疲。</p>
+                <p><strong>规则与安全：</strong>所有运动都需要排队、等待、不推挤。孩子们在快乐中学会了「轮流来」「慢慢等」。</p>
+            </div>
+            <div class="highlight-box">
+                <p>💡 <strong>老师说：</strong>运动不仅强健体魄，更塑造品格。从胆怯到勇敢，从笨拙到熟练，每一个跳跃和平衡，都是孩子们写给自己的勇气证明。</p>
+            </div>
+            <div class="photo-grid grid-3">
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/户外运动1.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/户外运动2.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/户外运动3 .jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/户外运动4.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/户外运动5.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/户外运动6.jpg" alt=""></div>
+            </div>
+        </div>
+
+        <!-- 三、成长与自理 -->
+        <div class="section" style="background: var(--color-bg);">
+            <div class="section-header">
+                <div class="section-icon">👟</div>
+                <div>
+                    <div class="section-title">我们的成长与变化——我能行，我知道</div>
+                    <div class="section-subtitle">Self-care · Routines &amp; confidence</div>
+                </div>
+            </div>
+            <div class="content-box">
+                <p><strong>生活自理——越来越能干了</strong></p>
+                <p><strong>换鞋小能手：</strong>大部分孩子已经能自己坐在小椅子上更换鞋子，换好后还会把袜子整齐地晾在鞋面上——这个小小的动作，藏着大大的秩序感。</p>
+                <p><strong>穿脱衣服：</strong>孩子们能自己脱裤子，个别宝贝已经能自己脱衣服了。虽然动作还不够熟练，但那份「我自己来」的劲头，值得每一个大拇指。</p>
+                <p><strong>自主进餐：</strong>越来越多的孩子能独立吃完自己的一份饭菜，桌面也比以前干净多了。</p>
+                <p><strong>自主入睡：</strong>午睡时间，大部分孩子都能安静地躺下，自己哄自己入睡，不再需要老师长时间陪伴。</p>
+                <p><strong>规则意识——越来越清晰了</strong></p>
+                <p>经过几周的积累，孩子们对幼儿园的一日生活流程已经非常熟悉：</p>
+                <p>知道「吃完饭后要擦嘴巴」「午睡前要换鞋子」「玩完玩具要送回家」。</p>
+                <p>每一个环节之间，孩子们能有序地过渡，不再需要老师反复催促。</p>
+                <p>户外运动时，能自觉排队、不推挤；区域活动时，能在固定区域操作，不拿着材料满教室跑。</p>
+            </div>
+            <div class="highlight-box">
+                <p>💡 <strong>老师说：</strong>从「老师说」到「我知道」，从「老师帮我」到「我自己来」——这是独立的第一步，也是成长的一大步。</p>
+            </div>
+            <div class="photo-grid grid-3">
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/生活自理1.JPG" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/生活自理2.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/生活自理3.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/生活自理4.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/生活自理5.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/生活自理6.jpg" alt=""></div>
+            </div>
+        </div>
+
+        <!-- 四、天府公园春游 -->
+        <div class="section" style="background: #fff;">
+            <div class="section-header">
+                <div class="section-icon">🌳</div>
+                <div>
+                    <div class="section-title">特色活动：天府公园春游——大自然里的艺术课</div>
+                    <div class="section-subtitle">Spring outing · Nature as our classroom</div>
+                </div>
+            </div>
+            <div class="content-box">
+                <p>这一周，最让孩子们兴奋的，莫过于去天府公园春游啦！大自然是最好的游乐场。</p>
+                <p><strong>保鲜膜画：</strong>我们在两棵树之间缠绕了长长的透明保鲜膜，孩子们用画笔蘸取颜料，在「透明画布」上自由涂鸦。每一笔都是他们对春天的感受。</p>
+                <p><strong>树叶喷画：</strong>孩子们捡来各种形状的落叶，平铺在白纸上，用小喷壶喷洒彩色颜料水。揭开树叶的瞬间，一片片树叶的「影子」留在了纸上。「哇，树叶的形状印出来啦！」</p>
+                <p>💌 感谢每一位家长为孩子准备的遮阳帽和水杯。这次春游因为你们的支持而更加完美！</p>
+            </div>
+            <div class="photo-grid grid-4">
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/特色活动1.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/特色活动2.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/特色活动3.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/特色活动4.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/特色活动5.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/特色活动6.JPG" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/特色活动7.jpg" alt=""></div>
+                <div class="photo-item"><img src="/Users/qianyan/Downloads/11Apr/特色活动8.jpg" alt=""></div>
+            </div>
+        </div>
+
+        <!-- 五、学习品质 -->
+        <div class="section" style="background: var(--color-bg);">
+            <div class="section-header">
+                <div class="section-icon">🧠</div>
+                <div>
+                    <div class="section-title">学习品质：孩子是怎么学的？</div>
+                    <div class="section-subtitle">Learner profile · Inquiry, care &amp; courage</div>
+                </div>
+            </div>
+            <div class="list-item">
+                <div class="list-icon">🔍</div>
+                <div class="list-content">
+                    <h4>积极探究 Inquirers</h4>
+                    <p>光影游戏时，孩子们主动要求「再试一次」；春游时蹲在地上观察树叶的形状，捡起不同颜色的落叶问：「老师，这个叶子是什么形状？」</p>
+                </div>
+            </div>
+            <div class="list-item">
+                <div class="list-icon">💬</div>
+                <div class="list-content">
+                    <h4>善于交流 Communicators</h4>
+                    <p>用颜色表达情绪——「我的脸蛋是红色的，因为我开心」；在小医生游戏中主动说「你发烧了，要打针，别怕」。</p>
+                </div>
+            </div>
+            <div class="list-item">
+                <div class="list-icon">🌟</div>
+                <div class="list-content">
+                    <h4>勇于尝试 Risk-Takers</h4>
+                    <p>第一次使用跳板玩跳箱时，有的孩子站在箱前犹豫，在老师鼓励下终于跳了过去——不怕失败，敢于挑战新事物。</p>
+                </div>
+            </div>
+            <div class="list-item">
+                <div class="list-icon">💗</div>
+                <div class="list-content">
+                    <h4>懂得关爱 Caring</h4>
+                    <p>小医生游戏中，「医生」轻轻给「病人」量体温，吃药药。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 六、家园共育 + 写在最后 -->
+        <div class="tips-section">
+            <div class="tips-title">家园共育小建议</div>
+            <div class="tips-grid">
+                <div class="tip-card">
+                    <h4>1. 延续艺术热情</h4>
+                    <p>在家玩颜色混合、树叶喷画、光影游戏；读《颜色的秘密》《点点点》等绘本。</p>
+                </div>
+                <div class="tip-card">
+                    <h4>2. 在家继续放手</h4>
+                    <p>让孩子自己换鞋、穿脱衣服、擦嘴巴，不要包办代替。</p>
+                </div>
+                <div class="tip-card">
+                    <h4>3. 玩角色扮演</h4>
+                    <p>和孩子玩「小医生」游戏，缓解对医院的恐惧；在厨房安全看护下，让孩子切软的食物（香蕉、黄瓜）。</p>
+                </div>
+                <div class="tip-card">
+                    <h4>4. 聊聊幼儿园</h4>
+                    <p>问问孩子「春游时你在保鲜膜上画了什么？」「你跳过箱子了吗？」——认真倾听，积极回应。</p>
+                </div>
+            </div>
+            <div class="closing-section">
+                <h3>🌈 写在最后</h3>
+                <p>这两周，孩子们在艺术的世界里自由创造，在运动的挑战中勇敢成长，在生活中越来越独立，在集体中越来越有序。他们用小手混合出色彩的变化，用小脚跳出勇气的弧线，用自己的方式告诉我们：我在长大，我能行。<br/><br/>感谢您和我们一起，陪伴孩子走过这段充满惊喜的成长之旅。<br/><br/>周末愉快，我们下周见！❤️</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div class="footer-star">⭐</div><div class="footer-star">⭐</div><div class="footer-star">⭐</div><div class="footer-star">⭐</div><div class="footer-star">⭐</div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,84 +1,167 @@
 #!/usr/bin/env python3
 """
-Generate long screenshot from HTML using Chrome headless
-Usage: python3 scripts/generate-long-screenshot.py input.html
+Generate a long PNG from self-contained HTML.
+
+Default path uses Playwright's full-page screenshot (exact document height, no
+trailing blank band). Falls back to legacy Chrome --window-size + heuristic
+height only if Playwright fails (e.g. no Node/npx).
+
+Usage:
+  python3 scripts/generate-long-screenshot.py path/to/report.html
+  python3 scripts/generate-long-screenshot.py path/to/report.html --legacy-chrome
 """
+from __future__ import annotations
+
+import argparse
+import os
+import shutil
 import subprocess
 import sys
-import os
-import tempfile
+from pathlib import Path
 
-# Get HTML path from command line or use default
-html_path = sys.argv[1] if len(sys.argv) > 1 else "input.html"
-output_path = os.path.abspath(html_path.replace('.html', '.png'))
-html_abs_path = os.path.abspath(html_path)
 
-# Step 1: Analyze HTML to estimate height
-print("📏 Calculating HTML content height...")
+def _file_url(path: Path) -> str:
+    return path.resolve().as_uri()
 
-with open(html_abs_path, 'r', encoding='utf-8') as f:
-    html_content = f.read()
 
-# Count different elements to estimate height
-section_count = html_content.count('<div class="section"')
-photo_count = html_content.count('<div class="photo-item"')
-list_count = html_content.count('<div class="list-item"')
-tips_count = html_content.count('<div class="tip-card"')
+def screenshot_playwright(html_path: Path, output_path: Path, timeout_ms: int = 120_000) -> bool:
+    """
+    Use `npx playwright screenshot --full-page` so height matches document (no blank tail).
 
-# Base height estimation (in pixels) - more conservative
-header_height = 600
-footer_height = 100
+    Tries: (1) system Google Chrome via --channel chrome; (2) Playwright's bundled Chromium
+    (requires `npx playwright install` once if browsers are missing).
+    """
+    npx = shutil.which("npx")
+    if not npx:
+        return False
 
-# Each section: padding + content
-section_height = 100  # section padding
+    url = _file_url(html_path)
+    base = [
+        npx,
+        "--yes",
+        "playwright",
+        "screenshot",
+        "--viewport-size",
+        "1080,800",
+        "--full-page",
+        "--timeout",
+        str(timeout_ms),
+        url,
+        str(output_path),
+    ]
 
-# Content within sections - more accurate estimates
-content_box_height = list_count * 200  # each list item ~200px
-photo_grid_height = (photo_count // 3) * 380 + (photo_count % 3) * 350  # photo grids with spacing
-tips_height = 500 + tips_count * 250  # tips section with cards
+    attempts: list[tuple[str, list[str]]] = [
+        ("Playwright + Google Chrome (--channel chrome)", ["--channel", "chrome"]),
+        ("Playwright bundled Chromium (run `npx playwright install` if needed)", []),
+    ]
 
-estimated_height = (
-    header_height +
-    (section_count * section_height) +
-    content_box_height +
-    photo_grid_height +
-    tips_height +
-    footer_height
-)
+    last_err = ""
+    for label, extra in attempts:
+        cmd = base[:-2] + extra + base[-2:]  # insert extra before url + out
+        print(f"📸 {label}…")
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode == 0 and output_path.is_file():
+            if r.stdout:
+                print(r.stdout.strip())
+            return True
+        last_err = (r.stderr or r.stdout or "").strip()
 
-print(f"   Sections: {section_count}, Photos: {photo_count}, Lists: {list_count}, Tips: {tips_count}")
-print(f"   Estimated height: {estimated_height}px")
+    if last_err:
+        print(last_err, file=sys.stderr)
+    return False
 
-# Use a smaller buffer (5% + 100px)
-height = int(estimated_height * 1.05) + 100
-print(f"   Screenshot height (with buffer): {height}px")
 
-# Step 2: Generate screenshot
-print("📸 Generating screenshot...")
-cmd = [
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "--headless",
-    "--disable-gpu",
-    "--no-sandbox",
-    "--hide-scrollbars",
-    f"--screenshot={output_path}",
-    f"--window-size=1080,{height}",
-    "--virtual-time-budget=10000",
-    f"file://{html_abs_path}"
-]
+def estimate_height_chrome_fallback(html_content: str) -> int:
+    """Rough height for legacy Chrome viewport (often oversized — prefer Playwright)."""
+    section_count = html_content.count('<div class="section"')
+    photo_count = html_content.count('<div class="photo-item"')
+    list_count = html_content.count('<div class="list-item"')
+    tips_count = html_content.count('<div class="tip-card"')
 
-result = subprocess.run(cmd, capture_output=True)
+    header_height = 600
+    footer_height = 100
+    section_height = 100
+    content_box_height = list_count * 200
+    # Rows: grid-3 → ceil(n/3), grid-4 → ceil(n/4); blend toward grid-3 (more common)
+    rows = (photo_count + 2) // 3
+    photo_grid_height = rows * 320
+    tips_height = 500 + tips_count * 250
 
-if result.returncode == 0:
-    print(f"✅ Screenshot saved: {output_path}")
+    estimated = (
+        header_height
+        + (section_count * section_height)
+        + content_box_height
+        + photo_grid_height
+        + tips_height
+        + footer_height
+    )
+    # Tighter buffer than before to reduce blank tail if Playwright is unavailable
+    return int(estimated * 1.02) + 80
 
-    # Get final dimensions
-    info_cmd = ["sips", "-g", "pixelWidth", "-g", "pixelHeight", output_path]
-    info = subprocess.run(info_cmd, capture_output=True, text=True)
-    for line in info.stdout.split('\n'):
-        if 'pixel' in line:
-            print(f"   {line.strip()}")
-else:
-    print(f"❌ Screenshot failed")
-    print(result.stderr.decode())
-    sys.exit(1)
+
+def screenshot_chrome_window(html_path: Path, output_path: Path, height: int) -> bool:
+    chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    if not os.path.isfile(chrome):
+        print("Chrome not found at expected path.", file=sys.stderr)
+        return False
+    cmd = [
+        chrome,
+        "--headless",
+        "--disable-gpu",
+        "--no-sandbox",
+        "--hide-scrollbars",
+        f"--screenshot={output_path}",
+        f"--window-size=1080,{height}",
+        "--virtual-time-budget=10000",
+        _file_url(html_path),
+    ]
+    print(f"📸 Legacy Chrome viewport screenshot (height={height}px, may include extra blank at bottom)…")
+    r = subprocess.run(cmd, capture_output=True)
+    return r.returncode == 0 and output_path.is_file()
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="HTML → long PNG (Playwright full-page by default)")
+    parser.add_argument("html", help="Path to self-contained .html")
+    parser.add_argument(
+        "--legacy-chrome",
+        action="store_true",
+        help="Use headless Chrome + estimated window height only (old behavior)",
+    )
+    args = parser.parse_args()
+
+    html_path = Path(args.html).expanduser()
+    if not html_path.is_file():
+        print(f"Not found: {html_path}", file=sys.stderr)
+        return 1
+
+    output_path = html_path.resolve().with_suffix(".png")
+
+    if not args.legacy_chrome:
+        if screenshot_playwright(html_path, output_path):
+            print(f"✅ Screenshot saved: {output_path}")
+            _print_dims(output_path)
+            return 0
+        print("⚠️  Playwright + Chrome channel failed; try: npx playwright install", file=sys.stderr)
+        print("   Falling back to legacy Chrome + height estimate…", file=sys.stderr)
+
+    with open(html_path, encoding="utf-8") as f:
+        html_content = f.read()
+    h = estimate_height_chrome_fallback(html_content)
+    print(f"📏 Legacy estimated height: {h}px")
+    if screenshot_chrome_window(html_path, output_path, h):
+        print(f"✅ Screenshot saved: {output_path}")
+        _print_dims(output_path)
+        return 0
+
+    print("❌ Screenshot failed.", file=sys.stderr)
+    return 1
+
+
+def _print_dims(png_path: Path) -> None:
+    if shutil.which("sips"):
+        _ = subprocess.run(["sips", "-g", "pixelWidth", "-g", "pixelHeight", str(png_path)], check=False)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

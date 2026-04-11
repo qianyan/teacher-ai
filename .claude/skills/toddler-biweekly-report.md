@@ -27,6 +27,11 @@ Only these regions are generated from user input:
 
 **Alternating section backgrounds:** first section after the header uses `background: var(--color-bg)`; then alternate `#fff` and `var(--color-bg)`.
 
+### Section titles and `.tips-title`
+
+- **`.tips-title`** uses the same red as **`.section-title`** (`var(--color-red)`, `letter-spacing: 2px` in [reference-shell.html](toddler-biweekly-report/reference-shell.html)).
+- **No numbering:** do not prefix `.section-title` or `.tips-title` with **一、二、三、** …; order follows document flow.
+
 ## Required inputs
 
 1. **`body_content`** — Full copy and structure for sections + tips (titles, list items, highlights, tip cards, closing). **Sections are not fixed:** follow the author’s outline exactly.
@@ -104,7 +109,7 @@ python3 scripts/generate-long-screenshot.py path/to/toddler-biweekly-report-YYYY
 ## Checklist
 
 - [ ] `reference-shell.html` head + header unchanged except `.info-badge` (中国大陆工作日起止).
-- [ ] Sections + tips match `body_content` strictly; no extra boilerplate sections.
+- [ ] Sections + tips match `body_content` strictly; no extra boilerplate sections; no **一、二、…** on `.section-title` / `.tips-title`; `.tips-title` red like `.section-title`.
 - [ ] Photo grids: 6 → `grid-3`, 8 → `grid-4`; landscape; **no** `.photo-label`.
 - [ ] Paths absolute; orphan/missing files documented if applicable.
 - [ ] **Long PNG generated** with `scripts/generate-long-screenshot.py` and checked visually.
