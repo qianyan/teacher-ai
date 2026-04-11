@@ -1,12 +1,20 @@
 "use client";
 
+/**
+ * Session PIN gate (client-side only).
+ *
+ * Future (WebAuthn / 通行密钥 / Touch ID): register a platform authenticator credential,
+ * then call `navigator.credentials.get({ publicKey, mediation: 'conditional' })` with a
+ * server-issued challenge. Requires registration UX + verifier — not implemented here.
+ */
+
 import {
-  type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
   useCallback,
   useEffect,
   useId,
+  useRef,
   useState,
 } from "react";
 
@@ -28,8 +36,10 @@ export function SessionUnlock({ children }: Props) {
   const [unlocked, setUnlocked] = useState(!lockEnabled);
   const [pinInput, setPinInput] = useState("");
   const [error, setError] = useState<string | null>(null);
-  /** Vault-style content reveal only after a successful PIN entry (not session restore). */
   const [playVaultReveal, setPlayVaultReveal] = useState(false);
+  const [fx, setFx] = useState<"none" | "shake" | "success">("none");
+  const shakeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const successTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!lockEnabled) {
@@ -47,22 +57,43 @@ export function SessionUnlock({ children }: Props) {
     setChecked(true);
   }, [lockEnabled]);
 
+  useEffect(() => {
+    return () => {
+      if (shakeTimer.current) clearTimeout(shakeTimer.current);
+      if (successTimer.current) clearTimeout(successTimer.current);
+    };
+  }, []);
+
+  const completeUnlock = useCallback(() => {
+    try {
+      sessionStorage.setItem(STORAGE_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+    setError(null);
+    setUnlocked(true);
+    setPlayVaultReveal(true);
+    setPinInput("");
+    setFx("none");
+  }, []);
+
   const submit = useCallback(() => {
     if (!lockEnabled) return;
     if (pinInput === expectedPin) {
-      try {
-        sessionStorage.setItem(STORAGE_KEY, "1");
-      } catch {
-        /* ignore */
-      }
-      setError(null);
-      setUnlocked(true);
-      setPlayVaultReveal(true);
-      setPinInput("");
+      setFx("success");
+      if (successTimer.current) clearTimeout(successTimer.current);
+      successTimer.current = setTimeout(() => {
+        completeUnlock();
+      }, 620);
     } else {
-      setError("密码不正确，请重试");
+      setError("密码不正确");
+      setFx("shake");
+      if (shakeTimer.current) clearTimeout(shakeTimer.current);
+      shakeTimer.current = setTimeout(() => {
+        setFx("none");
+      }, 520);
     }
-  }, [expectedPin, pinInput, lockEnabled]);
+  }, [lockEnabled, pinInput, expectedPin, completeUnlock]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
@@ -73,82 +104,87 @@ export function SessionUnlock({ children }: Props) {
 
   if (!checked && lockEnabled) {
     return (
-      <div
-        style={overlayStyle}
-        role="presentation"
-        aria-hidden
-      >
-        <div style={cardStyle}>
-          <p style={{ margin: 0, color: "var(--text-muted)", fontSize: 14 }}>
-            加载中…
-          </p>
+      <div className="session-unlock-overlay" role="presentation" aria-hidden>
+        <div className="session-unlock-loading glass-panel">
+          <p style={{ margin: 0, color: "var(--text-muted)", fontSize: 14 }}>加载中…</p>
         </div>
       </div>
     );
   }
 
   if (lockEnabled && !unlocked) {
+    const barClass =
+      fx === "shake"
+        ? "session-unlock-bar session-unlock-bar--shake"
+        : fx === "success"
+          ? "session-unlock-bar session-unlock-bar--success"
+          : "session-unlock-bar";
+
     return (
-      <div style={overlayStyle} role="dialog" aria-modal aria-labelledby={labelId}>
-        <div style={cardStyle}>
-          <div style={{ textAlign: "center", marginBottom: 20 }}>
-            <div
-              style={{
-                width: 56,
-                height: 56,
-                margin: "0 auto 16px",
-                borderRadius: 16,
-                background: "var(--accent-soft)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 28,
-              }}
-              aria-hidden
-            >
-              🔐
-            </div>
-            <h1
-              id={labelId}
-              style={{
-                fontSize: 22,
-                fontWeight: 700,
-                margin: "0 0 8px",
-                color: "var(--text)",
-                letterSpacing: "-0.02em",
-              }}
-            >
-              Teacher AI
-            </h1>
-            <p style={{ margin: 0, fontSize: 14, color: "var(--text-muted)", lineHeight: 1.5 }}>
-              输入会话密码以继续编辑周报（仅校验，不会写入本地存储密码本身）。
-            </p>
+      <div className="session-unlock-overlay" role="dialog" aria-modal aria-labelledby={labelId}>
+        <div className="session-unlock-vertical-rule" aria-hidden />
+        <div className="session-unlock-card">
+          <div className="session-unlock-window-dots" aria-hidden>
+            <span className="session-unlock-dot session-unlock-dot--red" />
+            <span className="session-unlock-dot session-unlock-dot--yellow" />
+            <span className="session-unlock-dot session-unlock-dot--green" />
           </div>
-          <label className="app-label" htmlFor="session-pin">
-            会话密码
-          </label>
-          <input
-            id="session-pin"
-            type="password"
-            autoComplete="off"
-            value={pinInput}
-            onChange={(e) => {
-              setPinInput(e.target.value);
-              setError(null);
-            }}
-            onKeyDown={handleKeyDown}
-            className="app-input"
-            style={{ marginBottom: 12 }}
-            placeholder="••••••"
-          />
+          <p id={labelId} className="session-unlock-brand">
+            Teacher AI
+          </p>
+          <p className="session-unlock-hint">
+            输入会话密码以继续（仅校验，密码本身不会写入本地存储）。
+          </p>
+
+          <div className={barClass}>
+            <div className="session-unlock-keyhole-wrap">
+              <div
+                className={
+                  fx === "success"
+                    ? "session-unlock-keyhole-ring session-unlock-keyhole-ring--pulse"
+                    : "session-unlock-keyhole-ring"
+                }
+              />
+              <div className="session-unlock-keyhole-face">
+                <svg viewBox="0 0 32 32" className="session-unlock-keyhole-svg" aria-hidden>
+                  <path
+                    fill="currentColor"
+                    d="M16 8c-2.5 0-4.5 2-4.5 4.5 0 1.2.5 2.3 1.3 3.1L14 22h4l1.2-6.4c.8-.8 1.3-1.9 1.3-3.1C20.5 10 18.5 8 16 8z"
+                  />
+                </svg>
+              </div>
+            </div>
+            <label htmlFor="session-pin" className="visually-hidden">
+              会话密码
+            </label>
+            <input
+              id="session-pin"
+              type="password"
+              autoComplete="off"
+              value={pinInput}
+              onChange={(e) => {
+                setPinInput(e.target.value);
+                setError(null);
+              }}
+              onKeyDown={handleKeyDown}
+              className="session-unlock-field"
+              placeholder="密码"
+            />
+            <button
+              type="button"
+              className="session-unlock-submit"
+              onClick={submit}
+              aria-label="解锁"
+            >
+              <PadlockIcon open={fx === "success"} />
+            </button>
+          </div>
+
           {error && (
-            <p style={{ color: "var(--danger)", fontSize: 13, margin: "0 0 12px" }}>
+            <p className="session-unlock-error" role="alert">
               {error}
             </p>
           )}
-          <button type="button" className="btn btn--primary btn--lg" style={{ width: "100%" }} onClick={submit}>
-            解锁
-          </button>
         </div>
       </div>
     );
@@ -161,25 +197,31 @@ export function SessionUnlock({ children }: Props) {
   );
 }
 
-const overlayStyle: CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  zIndex: 9999,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: 24,
-  background: "rgba(35, 32, 30, 0.48)",
-  backdropFilter: "blur(18px)",
-  WebkitBackdropFilter: "blur(18px)",
-};
-
-const cardStyle: CSSProperties = {
-  width: "100%",
-  maxWidth: 380,
-  background: "var(--panel-elevated)",
-  borderRadius: 16,
-  padding: 28,
-  boxShadow: "var(--shadow-md)",
-  border: "1px solid var(--border-subtle)",
-};
+function PadlockIcon({ open }: { open: boolean }) {
+  if (open) {
+    return (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path
+          d="M7 11V8a5 5 0 0110 0v3M6 11h12v10H6V11z"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path d="M12 15v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M7 11V8a5 5 0 019.9-1M17 11H7v10h10V11z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M12 15v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}

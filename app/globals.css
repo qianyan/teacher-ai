@@ -403,3 +403,293 @@ a:hover {
   background: var(--panel-elevated);
   box-shadow: var(--shadow-sm);
 }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Session unlock (skeuomorphic bar) */
+.session-unlock-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(180deg, rgba(180, 176, 168, 0.55) 0%, rgba(140, 135, 128, 0.65) 100%);
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+}
+
+[data-theme="dark"] .session-unlock-overlay {
+  background: linear-gradient(180deg, rgba(20, 22, 28, 0.88) 0%, rgba(10, 12, 16, 0.92) 100%);
+}
+
+.session-unlock-vertical-rule {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  margin-left: -1px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.35) 15%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(0, 0, 0, 0.06) 100%
+  );
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.session-unlock-loading {
+  padding: 28px 36px;
+  border-radius: 16px;
+  max-width: 320px;
+}
+
+.session-unlock-card {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  text-align: center;
+}
+
+.session-unlock-window-dots {
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.session-unlock-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.45),
+    0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.session-unlock-dot--red {
+  background: #ff5f57;
+}
+.session-unlock-dot--yellow {
+  background: #febc2e;
+}
+.session-unlock-dot--green {
+  background: #28c840;
+}
+
+.session-unlock-brand {
+  margin: 0 0 8px;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+
+.session-unlock-hint {
+  margin: 0 0 28px;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.session-unlock-bar {
+  display: flex;
+  align-items: stretch;
+  min-height: 52px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f7f5f2 0%, #e8e4dd 100%);
+  box-shadow:
+    inset 0 2px 4px rgba(255, 255, 255, 0.75),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.08),
+    0 4px 18px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s ease;
+}
+
+[data-theme="dark"] .session-unlock-bar {
+  background: linear-gradient(180deg, #2c3038 0%, #1f232a 100%);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.06),
+    inset 0 -2px 8px rgba(0, 0, 0, 0.35),
+    0 6px 24px rgba(0, 0, 0, 0.45);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.session-unlock-bar--shake {
+  animation: sessionUnlockShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+.session-unlock-bar--success {
+  animation: sessionUnlockSuccess 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+  box-shadow:
+    inset 0 2px 4px rgba(255, 255, 255, 0.75),
+    0 0 0 3px rgba(80, 160, 255, 0.35),
+    0 8px 28px rgba(60, 140, 255, 0.25);
+}
+
+@keyframes sessionUnlockShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
+
+@keyframes sessionUnlockSuccess {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1.03);
+  }
+}
+
+.session-unlock-keyhole-wrap {
+  position: relative;
+  flex: 0 0 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.session-unlock-keyhole-ring {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #6eb6ff 0%, #2a7fff 45%, #1a5fd4 100%);
+  box-shadow:
+    inset 0 2px 4px rgba(255, 255, 255, 0.45),
+    0 2px 8px rgba(30, 120, 255, 0.35);
+  opacity: 0.95;
+}
+
+.session-unlock-keyhole-ring--pulse {
+  animation: sessionUnlockRingPulse 0.7s ease-out both;
+}
+
+@keyframes sessionUnlockRingPulse {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  40% {
+    transform: scale(1.08);
+    filter: brightness(1.15);
+  }
+  100% {
+    transform: scale(1.05);
+    filter: brightness(1.05);
+  }
+}
+
+.session-unlock-keyhole-face {
+  position: relative;
+  z-index: 1;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #5a5e66 0%, #2e3138 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1a1d22;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
+.session-unlock-keyhole-svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.9;
+}
+
+.session-unlock-field {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 0 12px;
+  font-size: 16px;
+  font-family: inherit;
+  color: var(--text);
+  letter-spacing: 0.12em;
+}
+
+.session-unlock-field::placeholder {
+  color: var(--text-muted);
+  letter-spacing: normal;
+}
+
+.session-unlock-field:focus {
+  outline: none;
+}
+
+.session-unlock-submit {
+  flex: 0 0 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-left: 1px solid rgba(0, 0, 0, 0.08);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.03) 0%, rgba(0, 0, 0, 0.07) 100%);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+[data-theme="dark"] .session-unlock-submit {
+  border-left-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(0, 0, 0, 0.15) 100%);
+}
+
+.session-unlock-submit:hover {
+  color: var(--accent);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.session-unlock-bar--success .session-unlock-submit {
+  color: var(--success);
+}
+
+.session-unlock-error {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .session-unlock-bar--shake,
+  .session-unlock-bar--success,
+  .session-unlock-keyhole-ring--pulse {
+    animation: none !important;
+  }
+}
