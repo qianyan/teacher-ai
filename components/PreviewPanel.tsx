@@ -43,6 +43,36 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
     setExportError(null);
     setPngExporting(true);
     try {
+      const html = injectPhotoBlobUrls(fullHtml, buildPhotoBlobUrlMap(photos));
+      const htmlBytes = new Blob([html]).size;
+      const vercelBodyLimit = 4_450_000;
+
+      if (htmlBytes <= vercelBodyLimit) {
+        const res = await fetch("/api/long-screenshot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ html }),
+        });
+        if (res.ok) {
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `toddler-biweekly-${new Date().toISOString().slice(0, 10)}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+          return;
+        }
+        const errJson = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        console.warn("Server long screenshot failed:", errJson.error || res.status);
+      } else {
+        console.warn(
+          `HTML ${htmlBytes} bytes exceeds ~${vercelBodyLimit} safe limit; using in-browser fallback`,
+        );
+      }
+
       const blob = await captureIframeDocumentAsPngBlob(iframe);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -130,10 +160,10 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
         </p>
       )}
       <p style={{ margin: "0 0 14px", fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>
-        导入照片后会自动上传到 Vercel Blob（需配置 <code style={{ fontSize: 12 }}>BLOB_READ_WRITE_TOKEN</code>
-        ）；预览与 PNG 优先使用已同步的 https 链接。下载 HTML 时未同步的照片会内嵌为 base64。
-        命令行仍可用{" "}
-        <code style={{ fontSize: 12, color: "var(--text)" }}>scripts/generate-long-screenshot.py</code>。
+        导出长图优先由服务端 Playwright 整页截图（与{" "}
+        <code style={{ fontSize: 12 }}>scripts/generate-long-screenshot.py</code>{" "}
+        一致）；请保持照片「Blob：已同步」以控制 HTML 体积。失败或超限时回退为浏览器截图。
+        本机需 <code style={{ fontSize: 12 }}>npx playwright install chromium</code>。
       </p>
       <div style={frameOuter}>
         <div style={frameChrome} aria-hidden />

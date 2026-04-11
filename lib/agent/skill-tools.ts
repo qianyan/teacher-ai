@@ -70,9 +70,9 @@ export async function executeSkillTool(name: string): Promise<string> {
     case "get_long_screenshot_export_note":
       return [
         "Photos: on import, the UI uploads each image to Vercel Blob (client upload; needs BLOB_READ_WRITE_TOKEN). Renaming re-uploads and deletes the old blob URL.",
-        "PNG export: preview iframe is captured in the browser (html-to-image), using synced https image URLs when available.",
+        "PNG export: POST /api/long-screenshot runs Node Playwright full-page screenshot (lib/report/screenshot-html-playwright.ts); small HTML body needs https image URLs. Browser html-to-image is fallback.",
         "HTML download: uses Blob URLs from the list; any not yet synced are embedded as data URLs.",
-        "Optional: POST /api/long-screenshot runs local `python3 scripts/generate-long-screenshot.py` where Python + Playwright exist.",
+        "CLI: `python3 scripts/generate-long-screenshot.py report.html` — same full-page idea as the Node path.",
       ].join("\n");
     default:
       return JSON.stringify({ error: `Unknown tool: ${name}` });

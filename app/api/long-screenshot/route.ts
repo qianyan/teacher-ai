@@ -2,8 +2,8 @@ import { runGenerateLongScreenshot } from "@/lib/report/run-generate-long-screen
 import { NextResponse } from "next/server";
 
 /**
- * Local / self-hosted: full-page PNG via Python + Playwright (see scripts/generate-long-screenshot.py).
- * Production UI uses in-browser capture instead; keep payloads small if you call this from Vercel.
+ * Full-page PNG via Node Playwright (`lib/report/screenshot-html-playwright.ts`).
+ * Request body must stay under Vercel’s limit (~4.5MB): use https image URLs (Blob), not huge base64.
  */
 export const maxDuration = 120;
 

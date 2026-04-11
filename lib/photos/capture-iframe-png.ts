@@ -15,7 +15,8 @@ async function waitForDocumentImages(doc: Document): Promise<void> {
 }
 
 /**
- * Full-page PNG of an iframe’s document (same-origin `srcDoc` preview).
+ * In-browser fallback when server Playwright is unavailable.
+ * Passes explicit document scroll size so html-to-image captures the full page, not just the visible band.
  */
 export async function captureIframeDocumentAsPngBlob(
   iframe: HTMLIFrameElement,
@@ -28,13 +29,29 @@ export async function captureIframeDocumentAsPngBlob(
   await doc.fonts.ready;
   await waitForDocumentImages(doc);
 
+  const root = doc.documentElement;
+  const body = doc.body;
+  const fullWidth = Math.max(
+    root.scrollWidth,
+    body?.scrollWidth ?? 0,
+    root.clientWidth,
+    1080,
+  );
+  const fullHeight = Math.max(
+    root.scrollHeight,
+    body?.scrollHeight ?? 0,
+    root.clientHeight,
+    400,
+  );
+
   const pr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
-  const blob = await toBlob(doc.documentElement, {
-    // Must be false: cacheBust appends ?t=… to every URL, which breaks blob: image src
-    // (fetch fails with URLs like blob:https://origin/uuid?123 — see html-to-image dataurl.ts).
+  const blob = await toBlob(root, {
+    // Must be false: cacheBust breaks blob: image URLs (html-to-image dataurl.ts).
     cacheBust: false,
     pixelRatio: pr,
     backgroundColor: "#ffffff",
+    width: fullWidth,
+    height: fullHeight,
   });
 
   if (!blob) {

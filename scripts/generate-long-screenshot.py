@@ -2,6 +2,9 @@
 """
 Generate a long PNG from self-contained HTML.
 
+The Next.js app uses the same behavior in Node: lib/report/screenshot-html-playwright.ts
+(Post /api/long-screenshot). Keep this script for CLI-only workflows.
+
 Default path uses Playwright's full-page screenshot (exact document height, no
 trailing blank band). Falls back to legacy Chrome --window-size + heuristic
 height only if Playwright fails (e.g. no Node/npx).
