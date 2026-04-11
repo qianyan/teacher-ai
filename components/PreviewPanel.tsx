@@ -76,86 +76,130 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
   }
 
   return (
-    <div style={{ marginTop: 24 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <span style={{ fontWeight: 600, fontSize: 15 }}>预览（1080px 宽）</span>
-        <button
-          type="button"
-          style={btn}
-          disabled={!srcDoc || exporting}
-          onClick={handleExportPng}
-        >
-          {exporting ? "导出中…" : "导出长图 PNG"}
-        </button>
-        <button
-          type="button"
-          style={btn}
-          disabled={!srcDoc}
-          onClick={handleDownloadHtml}
-        >
-          下载 HTML
-        </button>
-        {exportError && (
-          <span style={{ color: "#e53e3e", fontSize: 13 }}>{exportError}</span>
-        )}
-      </div>
-      <p style={{ margin: "0 0 12px", fontSize: 12, color: "#718096" }}>
-        PNG 由{" "}
-        <code style={{ fontSize: 11 }}>scripts/generate-long-screenshot.py</code>{" "}
-       （Playwright）生成；本机需 Python 3 与 Playwright 浏览器。
-      </p>
-      <div
-        style={{
-          border: "1px solid var(--border)",
-          borderRadius: 8,
-          overflow: "auto",
-          maxHeight: "70vh",
-          background: "#e2e8f0",
-        }}
-      >
-        {srcDoc ? (
-          <iframe
-            title="preview"
-            srcDoc={srcDoc}
+    <div>
+      <div style={toolbarStyle}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <span style={{ fontWeight: 700, fontSize: 16, color: "var(--text)" }}>
+            预览
+          </span>
+          <span
             style={{
-              width: 1080,
-              minHeight: 400,
-              border: "none",
-              display: "block",
-              margin: "0 auto",
-              background: "#fff",
-            }}
-          />
-        ) : (
-          <div
-            style={{
-              padding: 48,
-              textAlign: "center",
-              color: "#a0aec0",
-              fontSize: 14,
+              fontSize: 12,
+              fontWeight: 600,
+              color: "var(--text-muted)",
+              background: "var(--bg)",
+              padding: "4px 10px",
+              borderRadius: 999,
+              border: "1px solid var(--border)",
             }}
           >
-            生成成功后将在此预览
-          </div>
-        )}
+            1080px 宽
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="btn btn--primary"
+            disabled={!srcDoc || exporting}
+            onClick={handleExportPng}
+          >
+            {exporting ? "导出中…" : "导出长图 PNG"}
+          </button>
+          <button
+            type="button"
+            className="btn btn--secondary"
+            disabled={!srcDoc}
+            onClick={handleDownloadHtml}
+          >
+            下载 HTML
+          </button>
+        </div>
+      </div>
+      {exportError && (
+        <p style={{ color: "var(--danger)", fontSize: 13, margin: "0 0 12px" }}>
+          {exportError}
+        </p>
+      )}
+      <p style={{ margin: "0 0 14px", fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>
+        PNG 由{" "}
+        <code style={{ fontSize: 12, color: "var(--text)" }}>scripts/generate-long-screenshot.py</code>{" "}
+        （Playwright）生成；本机需 Python 3 与 Playwright 浏览器。
+      </p>
+      <div style={frameOuter}>
+        <div style={frameChrome} aria-hidden />
+        <div style={scrollRegion}>
+          {srcDoc ? (
+            <iframe
+              title="preview"
+              srcDoc={srcDoc}
+              style={{
+                width: 1080,
+                minHeight: 400,
+                border: "none",
+                display: "block",
+                margin: "0 auto",
+                background: "#fff",
+              }}
+            />
+          ) : (
+            <div style={emptyState}>
+              <div style={emptyIcon} aria-hidden>
+                ◇
+              </div>
+              <p style={{ margin: "0 0 8px", fontWeight: 600, color: "var(--text)", fontSize: 15 }}>
+                尚无预览
+              </p>
+              <p style={{ margin: 0, fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6, maxWidth: 360 }}>
+                填写内容与照片后点击「生成预览 HTML」，成功后将在此显示与导出一致、1080px 宽的版面。
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-const btn: CSSProperties = {
-  padding: "8px 14px",
-  borderRadius: 8,
+const toolbarStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 16,
+  marginBottom: 12,
+  flexWrap: "wrap",
+};
+
+const frameOuter: CSSProperties = {
   border: "1px solid var(--border)",
-  background: "#fff",
-  cursor: "pointer",
-  fontSize: 14,
+  borderRadius: "var(--radius)",
+  overflow: "hidden",
+  background: "var(--panel-elevated)",
+  boxShadow: "var(--shadow-md)",
+};
+
+const frameChrome: CSSProperties = {
+  height: 8,
+  background: "linear-gradient(180deg, var(--border-subtle) 0%, var(--bg) 100%)",
+  borderBottom: "1px solid var(--border)",
+};
+
+const scrollRegion: CSSProperties = {
+  maxHeight: "70vh",
+  overflow: "auto",
+  background: "linear-gradient(180deg, #ebe6df 0%, #e8e3dc 100%)",
+  padding: "12px 0 20px",
+};
+
+const emptyState: CSSProperties = {
+  padding: "48px 24px 56px",
+  textAlign: "center",
+  maxWidth: 480,
+  margin: "0 auto",
+};
+
+const emptyIcon: CSSProperties = {
+  fontSize: 32,
+  color: "var(--border)",
+  marginBottom: 12,
+  opacity: 0.85,
 };

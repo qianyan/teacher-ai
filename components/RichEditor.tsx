@@ -43,24 +43,11 @@ export function RichEditor({
   }, [editor, valueHtml]);
 
   return (
-    <div style={{ marginBottom: 16 }}>
-      <label
-        style={{
-          display: "block",
-          fontWeight: 600,
-          marginBottom: 8,
-          fontSize: 14,
-        }}
-      >
-        {label}
-      </label>
+    <div className="rich-editor-wrap">
+      <label className="app-label">{label}</label>
       <div
-        style={{
-          border: "1px solid var(--border)",
-          borderRadius: 8,
-          background: "#fff",
-          minHeight,
-        }}
+        className="rich-editor-surface"
+        style={{ minHeight }}
       >
         <EditorContent editor={editor} />
       </div>
@@ -71,6 +58,7 @@ export function RichEditor({
           outline: none;
           font-size: 15px;
           line-height: 1.6;
+          color: var(--text);
         }
         .tiptap-editor p {
           margin: 0 0 0.5em;
@@ -78,7 +66,7 @@ export function RichEditor({
         .tiptap-editor p.is-editor-empty:first-child::before {
           content: attr(data-placeholder);
           float: left;
-          color: #a0aec0;
+          color: var(--text-muted);
           pointer-events: none;
           height: 0;
         }

@@ -3,6 +3,7 @@
 import { PhotoList } from "@/components/PhotoList";
 import { PreviewPanel } from "@/components/PreviewPanel";
 import { RichEditor } from "@/components/RichEditor";
+import { SessionUnlock } from "@/components/SessionUnlock";
 import type { PhotoEntry } from "@/lib/photos/inject-blobs";
 import { useCallback, useState } from "react";
 
@@ -57,139 +58,82 @@ export default function HomePage() {
   }, [biweeklyDateRange, subTitle, introHtml, bodyHtml, photos]);
 
   return (
-    <main
-      style={{
-        maxWidth: 1200,
-        margin: "0 auto",
-        padding: "24px 16px 48px",
-      }}
-    >
-      <header style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 8px" }}>
-          托班两周周报 · Teacher AI
-        </h1>
-        <p style={{ margin: 0, color: "#718096", fontSize: 15 }}>
-          编辑开篇与正文、导入照片并核对文件名，生成 HTML 预览与长图 PNG。需配置服务端
-          LLM 环境变量。
-        </p>
-      </header>
+    <SessionUnlock>
+      <main className="app-shell">
+        <header className="app-hero">
+          <h1>托班两周周报 · Teacher AI</h1>
+          <p>
+            编辑开篇与正文、导入照片并核对文件名，生成 HTML 预览与长图 PNG。需配置服务端
+            LLM 环境变量。
+          </p>
+        </header>
 
-      <section
-        style={{
-          background: "var(--panel)",
-          border: "1px solid var(--border)",
-          borderRadius: 12,
-          padding: 20,
-          marginBottom: 20,
-        }}
-      >
-        <h2 style={{ fontSize: 16, margin: "0 0 16px" }}>版面与日期</h2>
-        <label
-          style={{ display: "block", fontWeight: 600, marginBottom: 8, fontSize: 14 }}
-        >
-          双周日期徽章（中国大陆工作日）
-        </label>
-        <input
-          type="text"
-          value={biweeklyDateRange}
-          onChange={(e) => setBiweeklyDateRange(e.target.value)}
-          style={{
-            width: "100%",
-            maxWidth: 400,
-            padding: "10px 12px",
-            borderRadius: 8,
-            border: "1px solid var(--border)",
-            marginBottom: 16,
-            fontSize: 15,
-          }}
-        />
-        <label
-          style={{ display: "block", fontWeight: 600, marginBottom: 8, fontSize: 14 }}
-        >
-          副标题（横幅下红字一行）
-        </label>
-        <input
-          type="text"
-          value={subTitle}
-          onChange={(e) => setSubTitle(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "10px 12px",
-            borderRadius: 8,
-            border: "1px solid var(--border)",
-            marginBottom: 8,
-            fontSize: 15,
-          }}
-        />
-      </section>
+        <div className="app-grid app-grid--main">
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <section className="app-panel">
+              <h2 className="app-section-title">版面与日期</h2>
+              <label className="app-label" htmlFor="biweekly-range">
+                双周日期徽章（中国大陆工作日）
+              </label>
+              <input
+                id="biweekly-range"
+                type="text"
+                value={biweeklyDateRange}
+                onChange={(e) => setBiweeklyDateRange(e.target.value)}
+                className="app-input app-input--narrow"
+                style={{ marginBottom: 16 }}
+              />
+              <label className="app-label" htmlFor="sub-title">
+                副标题（横幅下红字一行）
+              </label>
+              <input
+                id="sub-title"
+                type="text"
+                value={subTitle}
+                onChange={(e) => setSubTitle(e.target.value)}
+                className="app-input"
+                style={{ marginBottom: 0 }}
+              />
+            </section>
 
-      <section
-        style={{
-          background: "var(--panel)",
-          border: "1px solid var(--border)",
-          borderRadius: 12,
-          padding: 20,
-          marginBottom: 20,
-        }}
-      >
-        <RichEditor
-          label="开篇（白底 intro 区域）"
-          valueHtml={introHtml}
-          onChangeHtml={setIntroHtml}
-          placeholder="问候语与双周概述…"
-          minHeight={140}
-        />
-        <RichEditor
-          label="结构化正文（各板块要点，供模型扩展为 section）"
-          valueHtml={bodyHtml}
-          onChangeHtml={setBodyHtml}
-          placeholder="按板块写好要点与照片前缀说明…"
-          minHeight={280}
-        />
-      </section>
+            <section className="app-panel">
+              <RichEditor
+                label="开篇（白底 intro 区域）"
+                valueHtml={introHtml}
+                onChangeHtml={setIntroHtml}
+                placeholder="问候语与双周概述…"
+                minHeight={140}
+              />
+              <RichEditor
+                label="结构化正文（各板块要点，供模型扩展为 section）"
+                valueHtml={bodyHtml}
+                onChangeHtml={setBodyHtml}
+                placeholder="按板块写好要点与照片前缀说明…"
+                minHeight={280}
+              />
+            </section>
+          </div>
 
-      <section
-        style={{
-          background: "var(--panel)",
-          border: "1px solid var(--border)",
-          borderRadius: 12,
-          padding: 20,
-          marginBottom: 20,
-        }}
-      >
-        <PhotoList photos={photos} onChange={setPhotos} />
-        <button
-          type="button"
-          onClick={generate}
-          disabled={loading}
-          style={{
-            padding: "12px 24px",
-            fontSize: 16,
-            fontWeight: 600,
-            color: "#fff",
-            background: loading ? "#fc8181" : "var(--accent)",
-            border: "none",
-            borderRadius: 10,
-            cursor: loading ? "wait" : "pointer",
-          }}
-        >
-          {loading ? "生成中…" : "生成预览 HTML"}
-        </button>
-        {error && (
-          <p style={{ color: "#e53e3e", marginTop: 12, fontSize: 14 }}>{error}</p>
-        )}
-      </section>
+          <aside className="app-panel app-aside">
+            <h2 className="app-section-title">照片与生成</h2>
+            <PhotoList photos={photos} onChange={setPhotos} />
+            <button
+              type="button"
+              className="btn btn--primary btn--lg"
+              style={{ width: "100%" }}
+              onClick={generate}
+              disabled={loading}
+            >
+              {loading ? "生成中…" : "生成预览 HTML"}
+            </button>
+            {error && <p className="text-error">{error}</p>}
+          </aside>
+        </div>
 
-      <section
-        style={{
-          background: "var(--panel)",
-          border: "1px solid var(--border)",
-          borderRadius: 12,
-          padding: 20,
-        }}
-      >
-        <PreviewPanel fullHtml={fullHtml} photos={photos} />
-      </section>
-    </main>
+        <section className="app-panel" style={{ marginTop: 20 }}>
+          <PreviewPanel fullHtml={fullHtml} photos={photos} />
+        </section>
+      </main>
+    </SessionUnlock>
   );
 }
