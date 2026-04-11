@@ -14,6 +14,7 @@ import {
 } from "@/lib/persistence/defaults";
 import { useReportPersistence } from "@/lib/persistence/use-report-persistence";
 import type { PhotoEntry } from "@/lib/photos/inject-blobs";
+import { allReportPhotosSynced } from "@/lib/photos/sync-guard";
 import {
   readHistorySidebarOpen,
   writeHistorySidebarOpen,
@@ -79,8 +80,14 @@ export default function HomePage() {
     defaultState: defaultHydratedState,
   });
 
+  const photosSynced = useMemo(() => allReportPhotosSynced(photos), [photos]);
+
   const generate = useCallback(async () => {
     setError(null);
+    if (!allReportPhotosSynced(photos)) {
+      setError("请等待全部照片同步到 Blob 后再生成。");
+      return;
+    }
     setLoading(true);
     setFullHtml(null);
     try {
@@ -122,6 +129,11 @@ export default function HomePage() {
     photos,
     recordHistoryAfterGenerate,
   ]);
+
+  const generateBlockedReason =
+    !photosSynced && photos.length > 0
+      ? "请等待全部照片同步到 Blob"
+      : undefined;
 
   const shellClass =
     `app-shell${historySidebarOpen ? " app-shell--history-open" : ""}`;
@@ -219,12 +231,24 @@ export default function HomePage() {
           <aside className="app-panel app-aside">
             <h2 className="app-section-title">照片与生成</h2>
             <PhotoList photos={photos} onChange={setPhotos} />
+            {generateBlockedReason && (
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "var(--text-muted)",
+                  margin: "0 0 10px",
+                }}
+              >
+                {generateBlockedReason}
+              </p>
+            )}
             <button
               type="button"
               className="btn btn--primary btn--lg"
               style={{ width: "100%" }}
               onClick={generate}
-              disabled={loading}
+              disabled={loading || !photosSynced}
+              title={generateBlockedReason}
             >
               {loading ? "生成中…" : "生成预览 HTML"}
             </button>
