@@ -14,6 +14,8 @@
     "@tiptap/pm": "^2.11.5",
     "@tiptap/react": "^2.11.5",
     "@tiptap/starter-kit": "^2.11.5",
+    "@vercel/blob": "^2.3.3",
+    "html-to-image": "^1.11.13",
     "next": "^15.1.0",
     "openai": "^4.77.0",
     "react": "^19.0.0",

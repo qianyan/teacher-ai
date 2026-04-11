@@ -1,13 +1,15 @@
 "use client";
 
+import { captureIframeDocumentAsPngBlob } from "@/lib/photos/capture-iframe-png";
 import {
   buildPhotoBlobUrlMap,
   buildPhotoDataUrlMap,
   injectPhotoBlobUrls,
   type PhotoEntry,
 } from "@/lib/photos/inject-blobs";
+import { ensureReportPhotoBlobUrls } from "@/lib/photos/upload-report-blobs";
 import type { CSSProperties } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Props = {
   fullHtml: string | null;
@@ -15,8 +17,13 @@ type Props = {
 };
 
 export function PreviewPanel({ fullHtml, photos }: Props) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  /** Cached Vercel Blob URL per photo id (avoids re-upload on repeat downloads). */
+  const blobUrlByPhotoIdRef = useRef<Map<string, string>>(new Map());
+
   const [srcDoc, setSrcDoc] = useState<string>("");
-  const [exporting, setExporting] = useState(false);
+  const [pngExporting, setPngExporting] = useState(false);
+  const [htmlBusy, setHtmlBusy] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -31,23 +38,15 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
 
   async function handleExportPng() {
     if (!fullHtml) return;
+    const iframe = iframeRef.current;
+    if (!iframe?.contentDocument?.documentElement) {
+      setExportError("预览未就绪，请稍后再导出 PNG");
+      return;
+    }
     setExportError(null);
-    setExporting(true);
+    setPngExporting(true);
     try {
-      const map = await buildPhotoDataUrlMap(photos);
-      const html = injectPhotoBlobUrls(fullHtml, map);
-      const res = await fetch("/api/long-screenshot", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ html }),
-      });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as {
-          error?: string;
-        };
-        throw new Error(data.error || `HTTP ${res.status}`);
-      }
-      const blob = await res.blob();
+      const blob = await captureIframeDocumentAsPngBlob(iframe);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -60,19 +59,38 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
         e instanceof Error ? e.message : "导出 PNG 失败，请查看控制台",
       );
     } finally {
-      setExporting(false);
+      setPngExporting(false);
     }
   }
 
-  function handleDownloadHtml() {
-    if (!srcDoc) return;
-    const blob = new Blob([srcDoc], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `toddler-biweekly-${new Date().toISOString().slice(0, 10)}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
+  async function handleDownloadHtml() {
+    if (!fullHtml) return;
+    setExportError(null);
+    setHtmlBusy(true);
+    try {
+      let map: Map<string, string>;
+      try {
+        map = await ensureReportPhotoBlobUrls(photos, blobUrlByPhotoIdRef.current);
+      } catch (blobErr) {
+        console.warn("Vercel Blob upload unavailable, embedding images as data URLs", blobErr);
+        map = await buildPhotoDataUrlMap(photos);
+      }
+      const html = injectPhotoBlobUrls(fullHtml, map);
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `toddler-biweekly-${new Date().toISOString().slice(0, 10)}.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      setExportError(
+        e instanceof Error ? e.message : "下载 HTML 失败，请查看控制台",
+      );
+    } finally {
+      setHtmlBusy(false);
+    }
   }
 
   return (
@@ -100,18 +118,18 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
           <button
             type="button"
             className="btn btn--primary"
-            disabled={!srcDoc || exporting}
+            disabled={!srcDoc || pngExporting || htmlBusy}
             onClick={handleExportPng}
           >
-            {exporting ? "导出中…" : "导出长图 PNG"}
+            {pngExporting ? "导出中…" : "导出长图 PNG"}
           </button>
           <button
             type="button"
             className="btn btn--secondary"
-            disabled={!srcDoc}
+            disabled={!srcDoc || htmlBusy || pngExporting}
             onClick={handleDownloadHtml}
           >
-            下载 HTML
+            {htmlBusy ? "上传照片…" : "下载 HTML"}
           </button>
         </div>
       </div>
@@ -121,15 +139,18 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
         </p>
       )}
       <p style={{ margin: "0 0 14px", fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>
-        PNG 由{" "}
-        <code style={{ fontSize: 12, color: "var(--text)" }}>scripts/generate-long-screenshot.py</code>{" "}
-        （Playwright）生成；本机需 Python 3 与 Playwright 浏览器。
+        长图 PNG 在浏览器内从预览直接导出（无大文件上传，适配 Vercel）。下载 HTML
+        时照片优先上传到 Vercel Blob 并写入可分享的链接；未配置 Blob 环境变量时回退为内嵌
+        base64。命令行仍可用{" "}
+        <code style={{ fontSize: 12, color: "var(--text)" }}>scripts/generate-long-screenshot.py</code>
+        （本机 Python + Playwright）。
       </p>
       <div style={frameOuter}>
         <div style={frameChrome} aria-hidden />
         <div style={scrollRegion}>
           {srcDoc ? (
             <iframe
+              ref={iframeRef}
               title="preview"
               srcDoc={srcDoc}
               style={{

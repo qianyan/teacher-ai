@@ -69,10 +69,10 @@ export async function executeSkillTool(name: string): Promise<string> {
       return readReferenceFooter();
     case "get_long_screenshot_export_note":
       return [
-        "PNG export in the Teacher AI UI: the browser POSTs self-contained HTML (photos inlined as data URLs) to POST /api/long-screenshot.",
-        "The API runs `python3 scripts/generate-long-screenshot.py <tmp/report.html>` (Playwright full-page screenshot; same script as the skill CLI).",
-        "Requires on the machine running `next dev` / `next start`: Python 3, `npx`, and Playwright browsers (`npx playwright install` if needed).",
-        "CLI equivalent: save HTML to a file, then `python3 scripts/generate-long-screenshot.py path/to/report.html`.",
+        "PNG export in the Teacher AI UI: the preview iframe is captured in the browser (html-to-image) — no large POST to the server (avoids Vercel 413).",
+        "HTML download: photos upload to Vercel Blob (client upload) when BLOB_READ_WRITE_TOKEN is set, then img src uses public https URLs; otherwise data URLs are embedded.",
+        "Optional local/server: POST /api/long-screenshot with small HTML (https image URLs) runs `python3 scripts/generate-long-screenshot.py` where Python + Playwright exist.",
+        "CLI: `python3 scripts/generate-long-screenshot.py path/to/report.html`.",
       ].join("\n");
     default:
       return JSON.stringify({ error: `Unknown tool: ${name}` });
