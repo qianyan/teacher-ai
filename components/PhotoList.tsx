@@ -3,9 +3,9 @@
 import type { PhotoEntry } from "@/lib/photos/inject-blobs";
 import { logicalKeyFromFilename } from "@/lib/photos/inject-blobs";
 import { uploadPhotoEntryToBlob } from "@/lib/photos/upload-report-blobs";
+import { PhotoPreviewModal } from "@/components/PhotoPreviewModal";
 import type { CSSProperties, Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PhotoPreviewModal } from "@/components/PhotoPreviewModal";
 
 type Props = {
   photos: PhotoEntry[];
@@ -33,16 +33,33 @@ export function PhotoList({ photos, onChange }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const uploadInFlight = useRef(new Set<string>());
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
-  const [preview, setPreview] = useState<PhotoEntry | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [fullscreenEntry, setFullscreenEntry] = useState<PhotoEntry | null>(null);
+
+  useEffect(() => {
+    if (photos.length === 0) {
+      setSelectedId(null);
+      return;
+    }
+    setSelectedId((prev) =>
+      prev && photos.some((p) => p.id === prev) ? prev : photos[0].id,
+    );
+  }, [photos]);
+
+  const selectedIndex = photos.findIndex((p) => p.id === selectedId);
+  const selected = selectedIndex >= 0 ? photos[selectedIndex] : null;
 
   const addFiles = useCallback(
     (fileList: FileList | null) => {
       if (!fileList?.length) return;
       const next: PhotoEntry[] = [...photos];
+      let firstNewId: string | null = null;
       for (let i = 0; i < fileList.length; i++) {
         const file = fileList[i];
+        const id = newId();
+        if (!firstNewId) firstNewId = id;
         next.push({
-          id: newId(),
+          id,
           file,
           logicalName: file.name,
           blobUrl: URL.createObjectURL(file),
@@ -54,6 +71,7 @@ export function PhotoList({ photos, onChange }: Props) {
         });
       }
       onChange(next);
+      if (firstNewId) setSelectedId(firstNewId);
     },
     [photos, onChange],
   );
@@ -165,61 +183,77 @@ export function PhotoList({ photos, onChange }: Props) {
           }}
         />
         <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
-          文件名需符合「前缀+数字」如 探究1.jpg；可拖拽排序或点击预览
+          文件名需「前缀+数字」如 探究1.jpg；缩略图栏拖拽排序，下方编辑当前选中项
         </span>
       </div>
+
       {photos.length === 0 ? (
         <p style={{ fontSize: 14, color: "var(--text-muted)", margin: 0 }}>
           尚未添加照片
         </p>
       ) : (
-        <ul
-          style={{
-            listStyle: "none",
-            padding: 0,
-            margin: 0,
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius-sm)",
-            background: "var(--panel-elevated)",
-            overflow: "hidden",
-            boxShadow: "var(--shadow-sm)",
-          }}
-        >
-          {photos.map((p, index) => {
-            const key = logicalKeyFromFilename(p.logicalName);
-            const isDragging = draggingIndex === index;
-            return (
-              <li
-                key={p.id}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = "move";
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (draggingIndex !== null) {
-                    reorder(draggingIndex, index);
-                    setDraggingIndex(null);
-                  }
-                }}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "auto 80px minmax(0, 1fr) auto",
-                  gap: 10,
-                  alignItems: "center",
-                  padding: "12px 14px",
-                  borderBottom:
-                    index < photos.length - 1
-                      ? "1px solid var(--border-subtle)"
-                      : "none",
-                  fontSize: 14,
-                  opacity: isDragging ? 0.65 : 1,
-                  background: isDragging ? "var(--accent-soft)" : undefined,
-                }}
-              >
-                <span
+        <>
+          <div className="photo-preview-stage">
+            {selected ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={selected.remoteUrl ?? selected.blobUrl}
+                  alt={selected.logicalName}
+                  onDoubleClick={() => setFullscreenEntry(selected)}
+                  style={{
+                    width: "100%",
+                    maxHeight: "min(38vh, 320px)",
+                    minHeight: 160,
+                    objectFit: "contain",
+                    borderRadius: "var(--radius-sm)",
+                    background: "var(--bg)",
+                    cursor: "zoom-in",
+                  }}
+                />
+                <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    style={{ fontSize: 13, padding: "6px 12px" }}
+                    onClick={() => setFullscreenEntry(selected)}
+                  >
+                    全屏预览
+                  </button>
+                </div>
+              </>
+            ) : null}
+          </div>
+
+          <div
+            className="photo-filmstrip"
+            role="listbox"
+            aria-label="照片缩略图"
+            style={filmstripWrap}
+          >
+            {photos.map((p, index) => {
+              const isSel = p.id === selectedId;
+              const isDragging = draggingIndex === index;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  role="option"
+                  aria-selected={isSel}
                   draggable
-                  title="拖拽排序"
+                  title={p.logicalName}
+                  onClick={() => setSelectedId(p.id)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (draggingIndex !== null) {
+                      reorder(draggingIndex, index);
+                      setDraggingIndex(null);
+                    }
+                  }}
                   onDragStart={(e) => {
                     setDraggingIndex(index);
                     e.dataTransfer.effectAllowed = "move";
@@ -227,21 +261,11 @@ export function PhotoList({ photos, onChange }: Props) {
                   }}
                   onDragEnd={() => setDraggingIndex(null)}
                   style={{
-                    fontSize: 12,
-                    color: "var(--text-muted)",
-                    userSelect: "none",
-                    letterSpacing: 1,
-                    cursor: isDragging ? "grabbing" : "grab",
+                    ...filmThumb,
+                    outline: isSel ? "2px solid var(--accent)" : "1px solid var(--border)",
+                    outlineOffset: 2,
+                    opacity: isDragging ? 0.55 : 1,
                   }}
-                  aria-hidden
-                >
-                  ⋮⋮
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setPreview(p)}
-                  style={thumbBtn}
-                  title="预览大图"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -256,120 +280,150 @@ export function PhotoList({ photos, onChange }: Props) {
                     }}
                   />
                 </button>
-                <div style={{ minWidth: 0 }}>
-                  <input
-                    type="text"
-                    value={p.logicalName}
-                    onChange={(e) => {
-                      const name = e.target.value;
-                      onChange(
-                        photos.map((x) => {
-                          if (x.id !== p.id) return x;
-                          if (name === x.logicalName) return x;
-                          void deleteRemoteBlob(x.remoteUrl);
-                          uploadInFlight.current.delete(x.id);
-                          return {
-                            ...x,
-                            logicalName: name,
-                            remoteUrl: null,
-                            remotePathname: null,
-                            uploadStatus: "pending",
-                            uploadError: null,
-                            uploadGeneration: x.uploadGeneration + 1,
-                          };
-                        }),
-                      );
-                    }}
-                    className="app-input"
-                    style={{ marginBottom: 6 }}
-                    spellCheck={false}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: key ? "var(--success)" : "var(--danger)",
-                    }}
-                  >
-                    {key
-                      ? `映射占位符: data-report-photo="${key}"`
-                      : "无法解析前缀+序号，请改为如 特色游戏1.jpg"}
-                  </div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
-                    {p.uploadStatus === "pending" && "Blob：排队上传…"}
-                    {p.uploadStatus === "uploading" && "Blob：上传中…"}
-                    {p.uploadStatus === "synced" && p.remoteUrl && "Blob：已同步"}
-                    {p.uploadStatus === "error" && (
-                      <span style={{ color: "var(--danger)" }}>
-                        Blob：{p.uploadError || "同步失败"}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <div style={{ display: "flex", gap: 4 }}>
-                    <button
-                      type="button"
-                      style={smallBtn}
-                      disabled={index === 0}
-                      onClick={() => move(index, -1)}
-                      title="上移"
+              );
+            })}
+          </div>
+
+          {selected && selectedIndex >= 0 ? (
+            <div
+              style={{
+                marginTop: 14,
+                padding: "14px",
+                borderRadius: "var(--radius-sm)",
+                border: "1px solid var(--border)",
+                background: "var(--panel-elevated)",
+              }}
+            >
+              {(() => {
+                const p = selected;
+                const index = selectedIndex;
+                const key = logicalKeyFromFilename(p.logicalName);
+                return (
+                  <>
+                    <input
+                      type="text"
+                      value={p.logicalName}
+                      onChange={(e) => {
+                        const name = e.target.value;
+                        onChange(
+                          photos.map((x) => {
+                            if (x.id !== p.id) return x;
+                            if (name === x.logicalName) return x;
+                            void deleteRemoteBlob(x.remoteUrl);
+                            uploadInFlight.current.delete(x.id);
+                            return {
+                              ...x,
+                              logicalName: name,
+                              remoteUrl: null,
+                              remotePathname: null,
+                              uploadStatus: "pending",
+                              uploadError: null,
+                              uploadGeneration: x.uploadGeneration + 1,
+                            };
+                          }),
+                        );
+                      }}
+                      className="app-input"
+                      style={{ marginBottom: 8 }}
+                      spellCheck={false}
+                    />
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: key ? "var(--success)" : "var(--danger)",
+                        marginBottom: 6,
+                      }}
                     >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      style={smallBtn}
-                      disabled={index === photos.length - 1}
-                      onClick={() => move(index, 1)}
-                      title="下移"
-                    >
-                      ↓
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    style={{ ...smallBtn, color: "var(--danger)" }}
-                    onClick={() => {
-                      void deleteRemoteBlob(p.remoteUrl);
-                      uploadInFlight.current.delete(p.id);
-                      URL.revokeObjectURL(p.blobUrl);
-                      onChange(photos.filter((x) => x.id !== p.id));
-                    }}
-                  >
-                    删除
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                      {key
+                        ? `映射: data-report-photo="${key}"`
+                        : "无法解析前缀+序号，请改为如 特色游戏1.jpg"}
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>
+                      {p.uploadStatus === "pending" && "Blob：排队上传…"}
+                      {p.uploadStatus === "uploading" && "Blob：上传中…"}
+                      {p.uploadStatus === "synced" && p.remoteUrl && "Blob：已同步"}
+                      {p.uploadStatus === "error" && (
+                        <span style={{ color: "var(--danger)" }}>
+                          Blob：{p.uploadError || "同步失败"}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        type="button"
+                        style={smallBtn}
+                        disabled={index === 0}
+                        onClick={() => move(index, -1)}
+                      >
+                        上移
+                      </button>
+                      <button
+                        type="button"
+                        style={smallBtn}
+                        disabled={index === photos.length - 1}
+                        onClick={() => move(index, 1)}
+                      >
+                        下移
+                      </button>
+                      <button
+                        type="button"
+                        style={{ ...smallBtn, color: "var(--danger)" }}
+                        onClick={() => {
+                          void deleteRemoteBlob(p.remoteUrl);
+                          uploadInFlight.current.delete(p.id);
+                          URL.revokeObjectURL(p.blobUrl);
+                          const next = photos.filter((x) => x.id !== p.id);
+                          onChange(next);
+                        }}
+                      >
+                        删除
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          ) : null}
+        </>
       )}
-      {preview && (
+
+      {fullscreenEntry && (
         <PhotoPreviewModal
-          imageUrl={preview.remoteUrl ?? preview.blobUrl}
-          fileName={preview.logicalName}
-          onClose={() => setPreview(null)}
+          imageUrl={fullscreenEntry.remoteUrl ?? fullscreenEntry.blobUrl}
+          fileName={fullscreenEntry.logicalName}
+          onClose={() => setFullscreenEntry(null)}
         />
       )}
     </div>
   );
 }
 
-const thumbBtn: CSSProperties = {
-  width: 80,
-  height: 45,
+const filmstripWrap: CSSProperties = {
+  display: "flex",
+  gap: 10,
+  overflowX: "auto",
+  overflowY: "hidden",
+  padding: "10px 4px 12px",
+  marginBottom: 4,
+  scrollbarWidth: "thin",
+  WebkitOverflowScrolling: "touch",
+};
+
+const filmThumb: CSSProperties = {
+  flex: "0 0 auto",
+  width: 88,
+  height: 56,
   padding: 0,
-  border: "1px solid var(--border)",
-  borderRadius: 6,
+  border: "none",
+  borderRadius: 8,
   overflow: "hidden",
-  cursor: "zoom-in",
+  cursor: "pointer",
   background: "var(--bg)",
 };
 
 const smallBtn: CSSProperties = {
-  padding: "4px 8px",
-  fontSize: 12,
+  padding: "6px 12px",
+  fontSize: 13,
   borderRadius: 6,
   border: "1px solid var(--border)",
   background: "var(--bg)",

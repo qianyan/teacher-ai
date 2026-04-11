@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { createPortal } from "react-dom";
+import { useEffect, useState } from "react";
 
 type Props = {
   imageUrl: string;
@@ -9,6 +10,12 @@ type Props = {
 };
 
 export function PhotoPreviewModal({ imageUrl, fileName, onClose }: Props) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -17,30 +24,32 @@ export function PhotoPreviewModal({ imageUrl, fileName, onClose }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  return (
+  if (!mounted || typeof document === "undefined") return null;
+
+  return createPortal(
     <div
       role="dialog"
       aria-modal
-      aria-label="照片预览"
+      aria-label="照片全屏预览"
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 10000,
+        zIndex: 25000,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         padding: 24,
-        background: "rgba(35, 32, 30, 0.55)",
-        backdropFilter: "blur(6px)",
-        WebkitBackdropFilter: "blur(6px)",
+        background: "rgba(0, 0, 0, 0.55)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
       }}
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          maxWidth: "90vw",
-          maxHeight: "90vh",
+          maxWidth: "96vw",
+          maxHeight: "96vh",
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -48,8 +57,8 @@ export function PhotoPreviewModal({ imageUrl, fileName, onClose }: Props) {
           src={imageUrl}
           alt={fileName}
           style={{
-            maxWidth: "90vw",
-            maxHeight: "90vh",
+            maxWidth: "96vw",
+            maxHeight: "96vh",
             width: "auto",
             height: "auto",
             objectFit: "contain",
@@ -59,6 +68,7 @@ export function PhotoPreviewModal({ imageUrl, fileName, onClose }: Props) {
           }}
         />
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
