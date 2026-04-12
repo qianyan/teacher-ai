@@ -8,7 +8,8 @@ import {
   type PhotoEntry,
 } from "@/lib/photos/inject-blobs";
 import type { CSSProperties } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type Props = {
   fullHtml: string | null;
@@ -22,6 +23,23 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
   const [pngExporting, setPngExporting] = useState(false);
   const [htmlBusy, setHtmlBusy] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [fullscreenOpen, setFullscreenOpen] = useState(false);
+  const [portalMounted, setPortalMounted] = useState(false);
+
+  const closeFullscreen = useCallback(() => setFullscreenOpen(false), []);
+
+  useEffect(() => {
+    setPortalMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!fullscreenOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeFullscreen();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fullscreenOpen, closeFullscreen]);
 
   useEffect(() => {
     if (!fullHtml) {
@@ -138,6 +156,14 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <button
             type="button"
+            className="btn btn--secondary"
+            disabled={!srcDoc || pngExporting || htmlBusy}
+            onClick={() => setFullscreenOpen(true)}
+          >
+            全屏预览
+          </button>
+          <button
+            type="button"
             className="btn btn--primary"
             disabled={!srcDoc || pngExporting || htmlBusy}
             onClick={handleExportPng}
@@ -197,6 +223,95 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
           )}
         </div>
       </div>
+      {portalMounted &&
+        fullscreenOpen &&
+        srcDoc &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal
+            aria-label="HTML 全屏预览"
+            onClick={closeFullscreen}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 25000,
+              boxSizing: "border-box",
+              width: "100vw",
+              height: "100dvh",
+              maxHeight: "100dvh",
+              padding: 12,
+              display: "flex",
+              flexDirection: "column",
+              background: "rgba(0, 0, 0, 0.55)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+            }}
+          >
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={(e) => {
+                e.stopPropagation();
+                closeFullscreen();
+              }}
+              style={{
+                position: "absolute",
+                top: 12,
+                right: 12,
+                zIndex: 1,
+              }}
+            >
+              关闭
+            </button>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                flex: "1 1 0",
+                minHeight: 0,
+                width: "100%",
+                maxWidth: "100%",
+                margin: "0 auto",
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  flex: "1 1 0",
+                  minHeight: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                  overflow: "hidden",
+                  background:
+                    "linear-gradient(180deg, #ebe6df 0%, #e8e3dc 100%)",
+                  borderRadius: "var(--radius)",
+                  padding: "12px 16px 16px",
+                  boxShadow: "var(--shadow-md)",
+                }}
+              >
+                <iframe
+                  title="preview-fullscreen"
+                  srcDoc={srcDoc}
+                  style={{
+                    flex: "1 1 0",
+                    minHeight: 0,
+                    width: 1080,
+                    maxWidth: "100%",
+                    height: "100%",
+                    alignSelf: "center",
+                    border: "none",
+                    display: "block",
+                    background: "#fff",
+                  }}
+                />
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
