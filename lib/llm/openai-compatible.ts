@@ -14,8 +14,8 @@ function getGenerateMaxTokens(): number {
 }
 
 function getLlmTimeoutMs(): number {
-  const n = parseInt(process.env.REPORT_LLM_REQUEST_TIMEOUT_MS || "25000", 10);
-  if (!Number.isFinite(n) || n < 1000) return 25000;
+  const n = parseInt(process.env.REPORT_LLM_REQUEST_TIMEOUT_MS || "45000", 10);
+  if (!Number.isFinite(n) || n < 1000) return 45000;
   return n;
 }
 

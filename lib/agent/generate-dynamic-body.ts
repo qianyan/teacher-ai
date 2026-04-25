@@ -1,11 +1,7 @@
 import { createLlmClient } from "@/lib/llm";
 import type { ChatMessage, ToolDefinition } from "@/lib/llm/types";
 import { SKILL_TOOL_DEFINITIONS, executeSkillTool } from "@/lib/agent/skill-tools";
-import {
-  readReferenceFooter,
-  readReferenceShell,
-  readSkillMd,
-} from "@/lib/report/read-assets";
+import { readSkillMd } from "@/lib/report/read-assets";
 
 function getMaxToolIterations(): number {
   const n = parseInt(
@@ -25,10 +21,8 @@ function buildPreloadedStaticContext(): string {
   return [
     "=== PRELOADED SKILL.md ===",
     readSkillMd(),
-    "=== PRELOADED reference-shell.html ===",
-    readReferenceShell(),
-    "=== PRELOADED reference-footer.html ===",
-    readReferenceFooter(),
+    "=== NOTE ===",
+    "Header/footer and global page shell are assembled server-side; only output the dynamic middle fragment.",
   ].join("\n\n");
 }
 
