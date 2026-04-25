@@ -78,9 +78,10 @@ export async function POST(request: Request) {
     const missingKey =
       /API_KEY|LLM_API_KEY|OPENAI_API_KEY/i.test(message) ||
       message.includes("required");
+    const timedOut = /timed out/i.test(message);
     return NextResponse.json(
       { error: message },
-      { status: missingKey ? 503 : 500 },
+      { status: missingKey ? 503 : timedOut ? 504 : 500 },
     );
   }
 }

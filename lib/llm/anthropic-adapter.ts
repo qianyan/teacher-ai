@@ -7,6 +7,40 @@ import type {
   ToolDefinition,
 } from "./types";
 
+function getGenerateMaxTokens(): number {
+  const n = parseInt(process.env.REPORT_GENERATE_MAX_TOKENS || "3072", 10);
+  if (!Number.isFinite(n) || n < 256) return 3072;
+  return n;
+}
+
+function getLlmTimeoutMs(): number {
+  const n = parseInt(process.env.REPORT_LLM_REQUEST_TIMEOUT_MS || "25000", 10);
+  if (!Number.isFinite(n) || n < 1000) return 25000;
+  return n;
+}
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  label: string,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 function toAnthropicMessages(
   messages: ChatMessage[],
 ): Anthropic.Messages.MessageParam[] {
@@ -91,14 +125,18 @@ export function createAnthropicClient(opts: {
       const system = extractSystem(messages);
       const anthropicMessages = toAnthropicMessages(messages);
 
-      const envMax = parseInt(process.env.REPORT_GENERATE_MAX_TOKENS || "8192", 10);
-      const res = await client.messages.create({
-        model,
-        max_tokens: maxTokens ?? (Number.isFinite(envMax) ? envMax : 8192),
-        system,
-        messages: anthropicMessages,
-        tools: toAnthropicTools(tools),
-      });
+      const timeoutMs = getLlmTimeoutMs();
+      const res = await withTimeout(
+        client.messages.create({
+          model,
+          max_tokens: maxTokens ?? getGenerateMaxTokens(),
+          system,
+          messages: anthropicMessages,
+          tools: toAnthropicTools(tools),
+        }),
+        timeoutMs,
+        "LLM request",
+      );
 
       const textParts: string[] = [];
       const toolCalls: ToolCall[] = [];

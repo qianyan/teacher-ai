@@ -7,6 +7,40 @@ import type {
   ToolDefinition,
 } from "./types";
 
+function getGenerateMaxTokens(): number {
+  const n = parseInt(process.env.REPORT_GENERATE_MAX_TOKENS || "3072", 10);
+  if (!Number.isFinite(n) || n < 256) return 3072;
+  return n;
+}
+
+function getLlmTimeoutMs(): number {
+  const n = parseInt(process.env.REPORT_LLM_REQUEST_TIMEOUT_MS || "25000", 10);
+  if (!Number.isFinite(n) || n < 1000) return 25000;
+  return n;
+}
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  label: string,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 function toOpenAiMessages(
   messages: ChatMessage[],
 ): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
@@ -77,13 +111,17 @@ export function createOpenAiCompatibleClient(opts: {
 
   return {
     async complete({ messages, tools, maxTokens }) {
-      const envMax = parseInt(process.env.REPORT_GENERATE_MAX_TOKENS || "8192", 10);
-      const res = await client.chat.completions.create({
-        model,
-        messages: toOpenAiMessages(messages),
-        tools: tools as OpenAI.Chat.Completions.ChatCompletionTool[] | undefined,
-        max_tokens: maxTokens ?? (Number.isFinite(envMax) ? envMax : 8192),
-      });
+      const timeoutMs = getLlmTimeoutMs();
+      const res = await withTimeout(
+        client.chat.completions.create({
+          model,
+          messages: toOpenAiMessages(messages),
+          tools: tools as OpenAI.Chat.Completions.ChatCompletionTool[] | undefined,
+          max_tokens: maxTokens ?? getGenerateMaxTokens(),
+        }),
+        timeoutMs,
+        "LLM request",
+      );
       const choice = res.choices?.[0];
       if (!choice?.message) {
         throw new Error(
