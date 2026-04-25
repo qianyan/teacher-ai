@@ -1,12 +1,18 @@
 import { generateDynamicBodyHtml } from "@/lib/agent/generate-dynamic-body";
 import { assembleFullDocument } from "@/lib/report/assemble";
 import {
+  createGenerateJob,
+  getGenerateJob,
+  runGenerateJob,
+} from "@/lib/report/generate-jobs";
+import {
   readReferenceFooter,
   readReferenceShell,
 } from "@/lib/report/read-assets";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
 export const maxDuration = 120;
+export const dynamic = "force-dynamic";
 
 export type GenerateRequestBody = {
   biweeklyDateRange: string;
@@ -16,72 +22,106 @@ export type GenerateRequestBody = {
   photoLogicalNames: string[];
 };
 
+function parseAndValidate(body: unknown): GenerateRequestBody | null {
+  if (!body || typeof body !== "object") return null;
+  const candidate = body as Partial<GenerateRequestBody>;
+  if (
+    !candidate.biweeklyDateRange ||
+    typeof candidate.biweeklyDateRange !== "string"
+  ) {
+    return null;
+  }
+  if (
+    typeof candidate.subTitle !== "string" ||
+    typeof candidate.introHtml !== "string" ||
+    typeof candidate.bodyHtml !== "string"
+  ) {
+    return null;
+  }
+  if (
+    !Array.isArray(candidate.photoLogicalNames) ||
+    candidate.photoLogicalNames.some((x) => typeof x !== "string")
+  ) {
+    return null;
+  }
+  return {
+    biweeklyDateRange: candidate.biweeklyDateRange,
+    subTitle: candidate.subTitle,
+    introHtml: candidate.introHtml,
+    bodyHtml: candidate.bodyHtml,
+    photoLogicalNames: candidate.photoLogicalNames,
+  };
+}
+
+async function performGenerate(input: GenerateRequestBody): Promise<{
+  dynamicBodyHtml: string;
+  fullHtml: string;
+}> {
+  const dynamicBodyHtml = await generateDynamicBodyHtml(input);
+  const shell = readReferenceShell();
+  const footer = readReferenceFooter();
+  const fullHtml = assembleFullDocument(shell, footer, {
+    biweeklyDateRange: input.biweeklyDateRange,
+    subTitle: input.subTitle,
+    introHtml: input.introHtml,
+    dynamicBodyHtml,
+  });
+  return { dynamicBodyHtml, fullHtml };
+}
+
 export async function POST(request: Request) {
+  let rawBody: unknown;
   try {
-    let body: GenerateRequestBody;
-    try {
-      body = (await request.json()) as GenerateRequestBody;
-    } catch {
-      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-    }
-
-    const {
-      biweeklyDateRange,
-      subTitle,
-      introHtml,
-      bodyHtml,
-      photoLogicalNames,
-    } = body;
-
-    if (!biweeklyDateRange || typeof biweeklyDateRange !== "string") {
-      return NextResponse.json(
-        { error: "biweeklyDateRange is required" },
-        { status: 400 },
-      );
-    }
-    if (typeof subTitle !== "string" || typeof introHtml !== "string") {
-      return NextResponse.json(
-        { error: "subTitle and introHtml must be strings" },
-        { status: 400 },
-      );
-    }
-    if (typeof bodyHtml !== "string") {
-      return NextResponse.json({ error: "bodyHtml is required" }, { status: 400 });
-    }
-    if (!Array.isArray(photoLogicalNames)) {
-      return NextResponse.json(
-        { error: "photoLogicalNames must be an array of strings" },
-        { status: 400 },
-      );
-    }
-
-    const dynamicBodyHtml = await generateDynamicBodyHtml({
-      biweeklyDateRange,
-      subTitle,
-      introHtml,
-      bodyHtml,
-      photoLogicalNames,
-    });
-
-    const shell = readReferenceShell();
-    const footer = readReferenceFooter();
-    const fullHtml = assembleFullDocument(shell, footer, {
-      biweeklyDateRange,
-      subTitle,
-      introHtml,
-      dynamicBodyHtml,
-    });
-
-    return NextResponse.json({ dynamicBodyHtml, fullHtml });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Generate failed";
-    const missingKey =
-      /API_KEY|LLM_API_KEY|OPENAI_API_KEY/i.test(message) ||
-      message.includes("required");
-    const timedOut = /timed out/i.test(message);
+    rawBody = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  const input = parseAndValidate(rawBody);
+  if (!input) {
     return NextResponse.json(
-      { error: message },
-      { status: missingKey ? 503 : timedOut ? 504 : 500 },
+      { error: "Invalid payload for generate request" },
+      { status: 400 },
     );
   }
+
+  const job = createGenerateJob(input);
+  after(async () => {
+    await runGenerateJob(job.id, performGenerate);
+  });
+
+  return NextResponse.json(
+    {
+      jobId: job.id,
+      status: job.status,
+      pollIntervalMs: 2000,
+    },
+    { status: 202, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const jobId = url.searchParams.get("jobId")?.trim();
+  if (!jobId) {
+    return NextResponse.json({ error: "jobId is required" }, { status: 400 });
+  }
+  const job = getGenerateJob(jobId);
+  if (!job) {
+    return NextResponse.json(
+      { error: "Job not found (maybe expired). Please submit again." },
+      { status: 404, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+  return NextResponse.json(
+    {
+      jobId: job.id,
+      status: job.status,
+      dynamicBodyHtml: job.dynamicBodyHtml,
+      fullHtml: job.fullHtml,
+      error: job.error,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+    },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }
