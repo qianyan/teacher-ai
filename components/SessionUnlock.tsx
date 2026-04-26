@@ -8,6 +8,7 @@
  * server-issued challenge. Requires registration UX + verifier — not implemented here.
  */
 
+import { Fredoka, ZCOOL_KuaiLe } from "next/font/google";
 import {
   type CSSProperties,
   type KeyboardEvent,
@@ -19,6 +20,19 @@ import {
   useRef,
   useState,
 } from "react";
+
+const fontFredoka = Fredoka({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-unlock-fredoka",
+  display: "swap",
+});
+
+const fontKuaile = ZCOOL_KuaiLe({
+  weight: "400",
+  subsets: ["latin"],
+  display: "swap",
+});
 
 const STORAGE_KEY = "teacher-ai-unlocked";
 
@@ -138,7 +152,7 @@ export function SessionUnlock({ children }: Props) {
     if (pinInput === expectedPin) {
       runUnlockAnimation();
     } else {
-      setError("你的密语叩不开我的心扉");
+      setError("咦？咒语好像不对哦～再悄悄试一次？");
       setFx("shake");
       if (shakeTimer.current) clearTimeout(shakeTimer.current);
       shakeTimer.current = setTimeout(() => {
@@ -156,9 +170,17 @@ export function SessionUnlock({ children }: Props) {
 
   if (!checked && lockEnabled) {
     return (
-      <div className="session-unlock-overlay" role="presentation" aria-hidden>
-        <div className="session-unlock-loading glass-panel">
-          <p style={{ margin: 0, color: "var(--text-muted)", fontSize: 14 }}>加载中…</p>
+      <div
+        className={`${fontFredoka.variable} ${fontKuaile.className} session-unlock-theme session-unlock-overlay`}
+        role="presentation"
+        aria-hidden
+      >
+        <SessionUnlockBackdrop />
+        <div className="session-unlock-loading">
+          <span className="session-unlock-loading-emoji" aria-hidden>
+            🎒
+          </span>
+          <p className="session-unlock-loading-text">小书包正在翻找教室钥匙…</p>
         </div>
       </div>
     );
@@ -176,11 +198,14 @@ export function SessionUnlock({ children }: Props) {
     return (
       <div
         ref={overlayRef}
-        className={`session-unlock-overlay${splitting ? " session-unlock-overlay--splitting" : ""}`}
+        className={`${fontFredoka.variable} ${fontKuaile.className} session-unlock-theme session-unlock-overlay${
+          splitting ? " session-unlock-overlay--splitting" : ""
+        }`}
         role="dialog"
         aria-modal
         aria-labelledby={labelId}
       >
+        <SessionUnlockBackdrop />
         {splitting && (
           <>
             <div className="session-unlock-curtain session-unlock-curtain--left" aria-hidden />
@@ -189,11 +214,15 @@ export function SessionUnlock({ children }: Props) {
         )}
         <UnlockFireworks active={unlocking && !prefersReducedMotion()} />
         <div className={`session-unlock-card${splitting ? " session-unlock-card--exit" : ""}`}>
-          <p id={labelId} className="session-unlock-brand">
-            Teacher AI
+          <p className="session-unlock-sticker" aria-hidden>
+            <span className="session-unlock-sticker-inner">老师专用</span>
           </p>
+          <h1 id={labelId} className="session-unlock-brand">
+            <span className="session-unlock-brand-en">Teacher AI</span>
+            <span className="session-unlock-brand-sub">噓——这是教室后门的秘密通道</span>
+          </h1>
           <p className="session-unlock-hint">
-            输入会话密语以继续（仅校验，密语本身不会写入本地存储）。
+            对妈妈说悄悄话、对小朋友念咒语都可以：输入一次即可继续。我们<strong>不</strong>把密语存进小饼干里。
           </p>
 
           <div className={barClass}>
@@ -208,13 +237,8 @@ export function SessionUnlock({ children }: Props) {
                     : "session-unlock-keyhole-ring"
                 }
               />
-              <div className="session-unlock-keyhole-face">
-                <svg viewBox="0 0 32 32" className="session-unlock-keyhole-svg" aria-hidden>
-                  <path
-                    fill="currentColor"
-                    d="M16 8c-2.5 0-4.5 2-4.5 4.5 0 1.2.5 2.3 1.3 3.1L14 22h4l1.2-6.4c.8-.8 1.3-1.9 1.3-3.1C20.5 10 18.5 8 16 8z"
-                  />
-                </svg>
+              <div className="session-unlock-keyhole-face" aria-hidden>
+                <KeyholeMascot unlocking={unlocking} />
               </div>
             </div>
             <label htmlFor="session-pin" className="visually-hidden">
@@ -231,26 +255,32 @@ export function SessionUnlock({ children }: Props) {
               }}
               onKeyDown={handleKeyDown}
               className="session-unlock-field"
-              placeholder="输入密语"
+              placeholder="唰唰唰，输入密语"
               disabled={unlocking}
             />
             <button
               type="button"
               className={`session-unlock-submit${unlocking ? " session-unlock-submit--unlocking" : ""}`}
               onClick={submit}
-              aria-label="解锁"
+              aria-label="开门啦"
               disabled={unlocking}
             >
-              {/* 右侧仅为提交入口；转动动效在左侧圆形锁头 (keyhole-wrap) */}
               <PadlockIcon open={unlocking} />
             </button>
           </div>
 
           {error && (
             <p className="session-unlock-error" role="alert">
+              <span className="session-unlock-error-emoji" aria-hidden>
+                🙈
+              </span>
               {error}
             </p>
           )}
+
+          <p className="session-unlock-whisper" aria-hidden>
+            <span>按 Enter 也可以「砰」地一下开门</span>
+          </p>
         </div>
       </div>
     );
@@ -260,6 +290,70 @@ export function SessionUnlock({ children }: Props) {
     <div className={playVaultReveal ? "app-unlocked-shell" : undefined}>
       {children}
     </div>
+  );
+}
+
+/** 教室主题：慢速漂浮的图形与表情，不抢主内容焦点 */
+function SessionUnlockBackdrop() {
+  return (
+    <div className="session-unlock-backdrop" aria-hidden>
+      <div className="session-unlock-blob session-unlock-blob--a" />
+      <div className="session-unlock-blob session-unlock-blob--b" />
+      <div className="session-unlock-blob session-unlock-blob--c" />
+      <span className="session-unlock-float session-unlock-float--1">⭐</span>
+      <span className="session-unlock-float session-unlock-float--2">🦒</span>
+      <span className="session-unlock-float session-unlock-float--3">🎨</span>
+      <span className="session-unlock-float session-unlock-float--4">📣</span>
+    </div>
+  );
+}
+
+/** 锁孔里的小圆脸：普通态眨眼，解锁中变成超开心 */
+function KeyholeMascot({ unlocking }: { unlocking: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      className={`session-unlock-mascot-svg${unlocking ? " session-unlock-mascot-svg--unlocking" : ""}`}
+      aria-hidden
+    >
+      {unlocking ? (
+        <>
+          <path
+            d="M9.5 12.5C9.5 10.5 10.5 8.5 12.5 8.5C14.5 8.5 15.5 10.5 15.5 12.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
+          <path
+            d="M16.5 12.5C16.5 10.5 17.5 8.5 19.5 8.5C21.5 8.5 22.5 10.5 22.5 12.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
+          <path
+            d="M9 20C11 24 16 25.5 22 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+          />
+        </>
+      ) : (
+        <>
+          <circle cx="11" cy="12.5" r="2" fill="currentColor" />
+          <circle cx="21" cy="12.5" r="2" fill="currentColor" />
+          <path
+            d="M11 20C13 22 15.5 23.5 18 22.5C19.2 22 20.2 20.8 20.5 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </>
+      )}
+    </svg>
   );
 }
 
