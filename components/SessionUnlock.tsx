@@ -8,6 +8,7 @@
  * server-issued challenge. Requires registration UX + verifier — not implemented here.
  */
 
+import { playClassroomUnlockFanfare } from "@/lib/sounds/play-classroom-unlock-fanfare";
 import { Fredoka, ZCOOL_KuaiLe } from "next/font/google";
 import {
   type CSSProperties,
@@ -17,6 +18,7 @@ import {
   useEffect,
   useId,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -67,9 +69,11 @@ export function SessionUnlock({ children }: Props) {
   const [playVaultReveal, setPlayVaultReveal] = useState(false);
   const [fx, setFx] = useState<"none" | "shake" | "success">("none");
   const [revealPhase, setRevealPhase] = useState<RevealPhase>("idle");
+  const [postUnlockFiesta, setPostUnlockFiesta] = useState(false);
   const shakeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rotateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const splitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fiestaTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updateUnlockAxis = useCallback(() => {
     const wrap = keyholeRef.current;
@@ -113,6 +117,7 @@ export function SessionUnlock({ children }: Props) {
       if (shakeTimer.current) clearTimeout(shakeTimer.current);
       if (rotateTimer.current) clearTimeout(rotateTimer.current);
       if (splitTimer.current) clearTimeout(splitTimer.current);
+      if (fiestaTimer.current) clearTimeout(fiestaTimer.current);
     };
   }, []);
 
@@ -128,6 +133,14 @@ export function SessionUnlock({ children }: Props) {
     setPinInput("");
     setFx("none");
     setRevealPhase("idle");
+    if (!prefersReducedMotion()) {
+      setPostUnlockFiesta(true);
+      if (fiestaTimer.current) clearTimeout(fiestaTimer.current);
+      fiestaTimer.current = setTimeout(() => {
+        setPostUnlockFiesta(false);
+        fiestaTimer.current = null;
+      }, 3000);
+    }
   }, []);
 
   const runUnlockAnimation = useCallback(() => {
@@ -136,6 +149,7 @@ export function SessionUnlock({ children }: Props) {
       splitTimer.current = setTimeout(() => completeUnlock(), 120);
       return;
     }
+    playClassroomUnlockFanfare();
     setFx("success");
     setRevealPhase("rotate");
     rotateTimer.current = setTimeout(() => {
@@ -212,6 +226,8 @@ export function SessionUnlock({ children }: Props) {
             <div className="session-unlock-curtain session-unlock-curtain--right" aria-hidden />
           </>
         )}
+        {unlocking && !prefersReducedMotion() && <UnlockBurstFlash />}
+        <UnlockConfettiShower active={unlocking} variant="overlay" />
         <UnlockFireworks active={unlocking && !prefersReducedMotion()} />
         <div className={`session-unlock-card${splitting ? " session-unlock-card--exit" : ""}`}>
           <p className="session-unlock-sticker" aria-hidden>
@@ -287,9 +303,10 @@ export function SessionUnlock({ children }: Props) {
   }
 
   return (
-    <div className={playVaultReveal ? "app-unlocked-shell" : undefined}>
-      {children}
-    </div>
+    <>
+      {postUnlockFiesta && <UnlockConfettiShower active variant="victory" />}
+      <div className={playVaultReveal ? "app-unlocked-shell" : undefined}>{children}</div>
+    </>
   );
 }
 
@@ -357,11 +374,80 @@ function KeyholeMascot({ unlocking }: { unlocking: boolean }) {
   );
 }
 
-/** Firework-like sparks + flash rings from lock center during success transition */
+/** 成功瞬间全屏高亮，不阻挡交互 */
+function UnlockBurstFlash() {
+  return <div className="session-unlock-burst-flash" aria-hidden />;
+}
+
+type ConfettiVariant = "overlay" | "victory";
+
+/** 全屏彩条下落；victory 在解锁后覆盖主应用再续 3s */
+function UnlockConfettiShower({ active, variant }: { active: boolean; variant: ConfettiVariant }) {
+  const count = variant === "victory" ? 260 : 150;
+  const specs = useMemo(() => {
+    if (!active) return [];
+    return Array.from({ length: count }, (_, i) => {
+      const r = () => Math.random();
+      return {
+        i,
+        x: r() * 100,
+        delay: r() * 0.5,
+        duration: 1.4 + r() * 2.4,
+        drift: (r() - 0.5) * 300,
+        rot: r() * 1080,
+        w: 5 + r() * 12,
+        h: 8 + r() * 20,
+        hue: (i * 19) % 360,
+        round: r() > 0.58,
+      };
+    });
+  }, [active, count]);
+
+  if (!active || specs.length === 0) return null;
+  return (
+    <div
+      className={
+        variant === "victory"
+          ? "session-unlock-confetti session-unlock-confetti--victory"
+          : "session-unlock-confetti"
+      }
+      aria-hidden
+    >
+      {specs.map((c) => {
+        const side = c.round ? (c.w + c.h) / 2 : c.w;
+        return (
+          <span
+            key={`${variant}-${c.i}`}
+            className={
+              c.round
+                ? "session-unlock-confetti-piece session-unlock-confetti-piece--round"
+                : "session-unlock-confetti-piece"
+            }
+            style={
+              {
+                left: `${c.x}%`,
+                width: c.round ? `${side}px` : `${c.w}px`,
+                height: c.round ? `${side}px` : `${c.h}px`,
+                ["--ch"]: c.hue,
+                ["--cd"]: `${c.duration}s`,
+                ["--cdelay"]: `${c.delay}s`,
+                ["--dx"]: `${c.drift}px`,
+                ["--rot"]: `${c.rot}deg`,
+              } as CSSProperties
+            }
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/** 锁心礼花 + 扩散环，密度与距离拉满 */
 function UnlockFireworks({ active }: { active: boolean }) {
   if (!active) return null;
-  const n1 = 32;
-  const n2 = 22;
+  const n1 = 80;
+  const n2 = 56;
+  const n3 = 48;
   return (
     <div className="session-unlock-fireworks" aria-hidden>
       {Array.from({ length: n1 }, (_, i) => (
@@ -372,7 +458,7 @@ function UnlockFireworks({ active }: { active: boolean }) {
             {
               "--ang": `${(360 / n1) * i}deg`,
               "--hue": `${12 + ((i * 47) % 330)}`,
-              animationDelay: `${i * 0.014}s`,
+              animationDelay: `${i * 0.009}s`,
             } as CSSProperties
           }
         />
@@ -385,7 +471,20 @@ function UnlockFireworks({ active }: { active: boolean }) {
             {
               "--ang": `${(360 / n2) * i + 19}deg`,
               "--hue": `${175 + ((i * 53) % 120)}`,
-              animationDelay: `${0.34 + i * 0.018}s`,
+              animationDelay: `${0.2 + i * 0.012}s`,
+            } as CSSProperties
+          }
+        />
+      ))}
+      {Array.from({ length: n3 }, (_, i) => (
+        <span
+          key={`u-${i}`}
+          className="session-unlock-spark session-unlock-spark--wide"
+          style={
+            {
+              "--ang": `${(360 / n3) * i + 7}deg`,
+              "--hue": `${(i * 67) % 360}`,
+              animationDelay: `${0.1 + (i * 0.007) % 0.4}s`,
             } as CSSProperties
           }
         />
@@ -393,6 +492,8 @@ function UnlockFireworks({ active }: { active: boolean }) {
       <span className="session-unlock-flash-ring" />
       <span className="session-unlock-flash-ring session-unlock-flash-ring--b" />
       <span className="session-unlock-flash-ring session-unlock-flash-ring--c" />
+      <span className="session-unlock-flash-ring session-unlock-flash-ring--d" />
+      <span className="session-unlock-flash-ring session-unlock-flash-ring--e" />
     </div>
   );
 }
