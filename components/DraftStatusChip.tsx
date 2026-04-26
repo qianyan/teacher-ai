@@ -1,6 +1,8 @@
 "use client";
 
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { CSSProperties } from "react";
+import { useState } from "react";
 
 type Props = {
   draftSavedAt: number | null;
@@ -9,6 +11,8 @@ type Props = {
 };
 
 export function DraftStatusChip({ draftSavedAt, draftError, onClearDraft }: Props) {
+  const [clearOpen, setClearOpen] = useState(false);
+
   const timeLabel =
     draftSavedAt !== null
       ? new Date(draftSavedAt).toLocaleString(undefined, {
@@ -22,6 +26,18 @@ export function DraftStatusChip({ draftSavedAt, draftError, onClearDraft }: Prop
 
   return (
     <div className="draft-chip">
+      <ConfirmDialog
+        open={clearOpen}
+        title="清除本机草稿？"
+        description="编辑区、照片列表与当前预览将恢复为默认状态。此操作无法撤销。"
+        confirmLabel="清除"
+        tone="danger"
+        onCancel={() => setClearOpen(false)}
+        onConfirm={async () => {
+          await onClearDraft();
+          setClearOpen(false);
+        }}
+      />
       <span className="draft-chip__icon" aria-hidden>
         <IconDraft />
       </span>
@@ -41,9 +57,7 @@ export function DraftStatusChip({ draftSavedAt, draftError, onClearDraft }: Prop
         type="button"
         className="btn btn--secondary"
         style={{ fontSize: 12, padding: "6px 10px", flexShrink: 0 }}
-        onClick={() => {
-          void onClearDraft();
-        }}
+        onClick={() => setClearOpen(true)}
       >
         清除
       </button>

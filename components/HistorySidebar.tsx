@@ -1,16 +1,23 @@
 "use client";
 
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { MAX_HISTORY } from "@/lib/persistence/idb";
 import type { HistoryRecord } from "@/lib/persistence/types";
 import type { CSSProperties } from "react";
+import { useState } from "react";
 
 type Props = {
   open: boolean;
   onClose: () => void;
   history: HistoryRecord[];
-  onRestore: (id: string) => void;
+  onRestore: (id: string) => void | Promise<void>;
   onDelete: (id: string) => void | Promise<void>;
 };
+
+type HistoryConfirm =
+  | null
+  | { action: "delete"; id: string; dateLabel: string }
+  | { action: "restore"; id: string; dateLabel: string };
 
 export function HistorySidebar({
   open,
@@ -19,8 +26,36 @@ export function HistorySidebar({
   onRestore,
   onDelete,
 }: Props) {
+  const [confirm, setConfirm] = useState<HistoryConfirm>(null);
+
   return (
     <>
+      <ConfirmDialog
+        open={confirm !== null}
+        title={
+          confirm?.action === "delete"
+            ? "删除这条历史记录？"
+            : confirm?.action === "restore"
+              ? "用该条历史替换当前内容？"
+              : ""
+        }
+        description={
+          confirm?.action === "delete"
+            ? `将永久移除「${confirm.dateLabel}」这一条，且无法恢复。`
+            : confirm?.action === "restore"
+              ? `将把「${confirm.dateLabel}」载入编辑区与照片列表，未保存的当前修改会被覆盖。`
+              : undefined
+        }
+        confirmLabel={confirm?.action === "delete" ? "删除" : "恢复"}
+        tone={confirm?.action === "delete" ? "danger" : "neutral"}
+        onCancel={() => setConfirm(null)}
+        onConfirm={async () => {
+          if (!confirm) return;
+          if (confirm.action === "delete") await onDelete(confirm.id);
+          else await onRestore(confirm.id);
+          setConfirm(null);
+        }}
+      />
       {open && (
         <button
           type="button"
@@ -76,16 +111,13 @@ export function HistorySidebar({
                     type="button"
                     className="btn btn--secondary"
                     style={{ fontSize: 12, padding: "6px 10px" }}
-                    onClick={() => {
-                      if (
-                        !window.confirm(
-                          "将用该条历史替换当前编辑区与照片，确定恢复？",
-                        )
-                      ) {
-                        return;
-                      }
-                      onRestore(row.id);
-                    }}
+                    onClick={() =>
+                      setConfirm({
+                        action: "restore",
+                        id: row.id,
+                        dateLabel: row.snapshot.biweeklyDateRange,
+                      })
+                    }
                   >
                     恢复
                   </button>
@@ -97,10 +129,13 @@ export function HistorySidebar({
                       padding: "6px 10px",
                       color: "var(--danger)",
                     }}
-                    onClick={() => {
-                      if (!window.confirm("删除这条历史记录？")) return;
-                      onDelete(row.id);
-                    }}
+                    onClick={() =>
+                      setConfirm({
+                        action: "delete",
+                        id: row.id,
+                        dateLabel: row.snapshot.biweeklyDateRange,
+                      })
+                    }
                   >
                     删除
                   </button>

@@ -145,8 +145,8 @@ export default function HomePage() {
     `app-shell${historySidebarOpen ? " app-shell--history-open" : ""}`;
 
   const handleRestoreHistory = useCallback(
-    (id: string) => {
-      void loadHistoryEntry(id);
+    async (id: string) => {
+      await loadHistoryEntry(id);
       setHistorySidebarOpen(false);
     },
     [loadHistoryEntry],

@@ -3,6 +3,7 @@
 import type { PhotoEntry } from "@/lib/photos/inject-blobs";
 import { logicalKeyFromFilename } from "@/lib/photos/inject-blobs";
 import { uploadPhotoEntryToBlob } from "@/lib/photos/upload-report-blobs";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PhotoPreviewModal } from "@/components/PhotoPreviewModal";
 import { toastPhotoRemoved } from "@/lib/user-toast";
 import type { CSSProperties, Dispatch, SetStateAction } from "react";
@@ -36,6 +37,7 @@ export function PhotoList({ photos, onChange }: Props) {
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [fullscreenEntry, setFullscreenEntry] = useState<PhotoEntry | null>(null);
+  const [photoDeleteTarget, setPhotoDeleteTarget] = useState<PhotoEntry | null>(null);
 
   useEffect(() => {
     if (photos.length === 0) {
@@ -368,14 +370,7 @@ export function PhotoList({ photos, onChange }: Props) {
                       <button
                         type="button"
                         style={{ ...smallBtn, color: "var(--danger)" }}
-                        onClick={() => {
-                          void deleteRemoteBlob(p.remoteUrl);
-                          uploadInFlight.current.delete(p.id);
-                          URL.revokeObjectURL(p.blobUrl);
-                          const next = photos.filter((x) => x.id !== p.id);
-                          onChange(next);
-                          toastPhotoRemoved(p.logicalName);
-                        }}
+                        onClick={() => setPhotoDeleteTarget(p)}
                       >
                         删除
                       </button>
@@ -387,6 +382,29 @@ export function PhotoList({ photos, onChange }: Props) {
           ) : null}
         </>
       )}
+
+      <ConfirmDialog
+        open={photoDeleteTarget !== null}
+        title="删除这张照片？"
+        description={
+          photoDeleteTarget
+            ? `将从列表移除「${photoDeleteTarget.logicalName}」，若已同步到 Blob 会尝试删除远端文件。`
+            : undefined
+        }
+        confirmLabel="删除"
+        tone="danger"
+        onCancel={() => setPhotoDeleteTarget(null)}
+        onConfirm={() => {
+          const p = photoDeleteTarget;
+          if (!p) return;
+          void deleteRemoteBlob(p.remoteUrl);
+          uploadInFlight.current.delete(p.id);
+          URL.revokeObjectURL(p.blobUrl);
+          onChange((prev) => prev.filter((x) => x.id !== p.id));
+          toastPhotoRemoved(p.logicalName);
+          setPhotoDeleteTarget(null);
+        }}
+      />
 
       {fullscreenEntry && (
         <PhotoPreviewModal

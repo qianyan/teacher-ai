@@ -487,6 +487,22 @@ a:hover {
   transform: translateY(0) scale(0.99);
 }
 
+.btn--danger {
+  color: #fff;
+  background: linear-gradient(165deg, #f06b6f 0%, var(--danger) 52%, #c93a40 100%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-pop), 0 6px 18px rgba(229, 72, 77, 0.28);
+}
+
+.btn--danger:hover:not(:disabled) {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.btn--danger:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+}
+
 .btn--lg {
   padding: 12px 24px;
   font-size: 16px;
@@ -1781,4 +1797,49 @@ a:hover {
 .app-toast__desc {
   font-size: 0.8125rem !important;
   opacity: 0.92 !important;
+}
+
+/* 确认弹窗（删除 / 清除等） */
+.confirm-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 22000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 24, 32, 0.45);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.confirm-dialog-panel {
+  width: 100%;
+  max-width: 400px;
+  padding: 22px 22px 20px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--glass-border);
+}
+
+.confirm-dialog-title {
+  margin: 0 0 10px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.confirm-dialog-desc {
+  margin: 0 0 20px;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
 }
