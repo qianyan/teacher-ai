@@ -19,6 +19,12 @@ import {
   readHistorySidebarOpen,
   writeHistorySidebarOpen,
 } from "@/lib/history-sidebar-storage";
+import {
+  toastDraftClearFailed,
+  toastDraftCleared,
+  toastHistoryDeleteFailed,
+  toastHistoryDeleted,
+} from "@/lib/user-toast";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 export default function HomePage() {
@@ -167,8 +173,13 @@ export default function HomePage() {
         <AppHeader
           draftSavedAt={draftSavedAt}
           draftError={draftError}
-          onClearDraft={() => {
-            void clearDraftAndReset();
+          onClearDraft={async () => {
+            try {
+              await clearDraftAndReset();
+              toastDraftCleared();
+            } catch (e) {
+              toastDraftClearFailed(e);
+            }
           }}
           historyCount={history.length}
           historySidebarOpen={historySidebarOpen}
@@ -182,8 +193,13 @@ export default function HomePage() {
           onClose={() => setHistorySidebarOpen(false)}
           history={history}
           onRestore={handleRestoreHistory}
-          onDelete={(id) => {
-            void deleteHistoryEntry(id);
+          onDelete={async (id) => {
+            try {
+              await deleteHistoryEntry(id);
+              toastHistoryDeleted();
+            } catch (e) {
+              toastHistoryDeleteFailed(e);
+            }
           }}
         />
 

@@ -8,7 +8,7 @@ import type { CSSProperties } from "react";
 type Props = {
   draftSavedAt: number | null;
   draftError: string | null;
-  onClearDraft: () => void;
+  onClearDraft: () => void | Promise<void>;
   historyCount: number;
   historySidebarOpen: boolean;
   onToggleHistorySidebar: () => void;

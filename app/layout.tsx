@@ -1,3 +1,4 @@
+import { AppToaster } from "@/components/AppToaster";
 import { ThemeScript } from "@/components/ThemeScript";
 import type { Metadata } from "next";
 import { Noto_Sans_SC, Outfit } from "next/font/google";
@@ -38,6 +39,7 @@ export default function RootLayout({
       </head>
       <body className={`${fontDisplay.variable} ${fontBody.variable}`}>
         {children}
+        <AppToaster />
       </body>
     </html>
   );

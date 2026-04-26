@@ -5,7 +5,7 @@ import type { CSSProperties } from "react";
 type Props = {
   draftSavedAt: number | null;
   draftError: string | null;
-  onClearDraft: () => void;
+  onClearDraft: () => void | Promise<void>;
 };
 
 export function DraftStatusChip({ draftSavedAt, draftError, onClearDraft }: Props) {

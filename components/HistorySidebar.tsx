@@ -9,7 +9,7 @@ type Props = {
   onClose: () => void;
   history: HistoryRecord[];
   onRestore: (id: string) => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string) => void | Promise<void>;
 };
 
 export function HistorySidebar({

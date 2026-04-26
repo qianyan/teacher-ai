@@ -1764,3 +1764,21 @@ a:hover {
     transition: none !important;
   }
 }
+
+/* Sonner：与界面变量对齐 */
+.app-toast {
+  font-family: var(--font-app-body), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    sans-serif !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+.app-toast__title {
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+}
+
+.app-toast__desc {
+  font-size: 0.8125rem !important;
+  opacity: 0.92 !important;
+}

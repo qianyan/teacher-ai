@@ -4,6 +4,7 @@ import type { PhotoEntry } from "@/lib/photos/inject-blobs";
 import { logicalKeyFromFilename } from "@/lib/photos/inject-blobs";
 import { uploadPhotoEntryToBlob } from "@/lib/photos/upload-report-blobs";
 import { PhotoPreviewModal } from "@/components/PhotoPreviewModal";
+import { toastPhotoRemoved } from "@/lib/user-toast";
 import type { CSSProperties, Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -373,6 +374,7 @@ export function PhotoList({ photos, onChange }: Props) {
                           URL.revokeObjectURL(p.blobUrl);
                           const next = photos.filter((x) => x.id !== p.id);
                           onChange(next);
+                          toastPhotoRemoved(p.logicalName);
                         }}
                       >
                         删除
