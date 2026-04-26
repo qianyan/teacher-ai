@@ -2,7 +2,7 @@ import { createLlmClient } from "@/lib/llm";
 import type { ChatMessage, ToolDefinition } from "@/lib/llm/types";
 import { SKILL_TOOL_DEFINITIONS, executeSkillTool } from "@/lib/agent/skill-tools";
 
-const MAX_TOOL_ITERATIONS = 24;
+const MAX_AGENT_TURNS = 8;
 
 function buildSystemPrompt(): string {
   return `You are an expert assistant that outputs HTML for a Chinese toddler class biweekly newsletter (托班两周周报).
@@ -57,6 +57,7 @@ export async function generateDynamicBodyHtml(
 ): Promise<string> {
   const client = createLlmClient();
   const tools: ToolDefinition[] = SKILL_TOOL_DEFINITIONS;
+  const toolResultCache = new Map<string, string>();
 
   const messages: ChatMessage[] = [
     { role: "system", content: buildSystemPrompt() },
@@ -66,25 +67,36 @@ export async function generateDynamicBodyHtml(
     },
   ];
 
-  for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
+  for (let turn = 0; turn < MAX_AGENT_TURNS; turn++) {
     const res = await client.complete({ messages, tools });
     const msg = res.message;
+    const toolCalls = msg.tool_calls ?? [];
 
-    if (msg.tool_calls?.length) {
+    if (toolCalls.length) {
       messages.push({
         role: "assistant",
         content: msg.content,
-        tool_calls: msg.tool_calls,
+        tool_calls: toolCalls,
       });
-      for (const tc of msg.tool_calls) {
-        const name = tc.function.name;
-        const result = await executeSkillTool(name);
-        messages.push({
-          role: "tool",
-          tool_call_id: tc.id,
-          content: result,
-        });
-      }
+
+      const toolMessages = await Promise.all(
+        toolCalls.map(async (tc) => {
+          const name = tc.function.name;
+          const cached = toolResultCache.get(name);
+          const content = cached ?? (await executeSkillTool(name));
+          if (!cached) {
+            toolResultCache.set(name, content);
+          }
+
+          return {
+            role: "tool" as const,
+            tool_call_id: tc.id,
+            content,
+          };
+        }),
+      );
+
+      messages.push(...toolMessages);
       continue;
     }
 
@@ -95,5 +107,5 @@ export async function generateDynamicBodyHtml(
     return extractHtmlFragment(text);
   }
 
-  throw new Error("Tool loop exceeded max iterations");
+  throw new Error("Agent loop exceeded max turns");
 }

@@ -1,6 +1,5 @@
 import type { ToolDefinition } from "@/lib/llm/types";
 import {
-  readReferenceFooter,
   readReferenceShell,
   readSkillMd,
 } from "@/lib/report/read-assets";
@@ -22,34 +21,9 @@ export const SKILL_TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     type: "function",
     function: {
-      name: "get_reference_shell_html",
+      name: "get_newsletter_template_html",
       description:
         "Load reference-shell.html (locked head, CSS, header). Use to match section/tips markup and classes.",
-      parameters: {
-        type: "object",
-        properties: {},
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_reference_footer_html",
-      description: "Load reference-footer.html (closing footer bar).",
-      parameters: {
-        type: "object",
-        properties: {},
-        additionalProperties: false,
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_long_screenshot_export_note",
-      description:
-        "How PNG is produced in this app: same as SKILL — scripts/generate-long-screenshot.py (Playwright full-page). Call if the user asks about exporting PNG or parity with the CLI.",
       parameters: {
         type: "object",
         properties: {},
@@ -63,17 +37,8 @@ export async function executeSkillTool(name: string): Promise<string> {
   switch (name) {
     case "get_skill_instructions":
       return readSkillMd();
-    case "get_reference_shell_html":
+    case "get_newsletter_template_html":
       return readReferenceShell();
-    case "get_reference_footer_html":
-      return readReferenceFooter();
-    case "get_long_screenshot_export_note":
-      return [
-        "Photos: on import, the UI uploads each image to Vercel Blob (client upload; needs BLOB_READ_WRITE_TOKEN). Renaming re-uploads and deletes the old blob URL.",
-        "PNG export: POST /api/long-screenshot runs Node Playwright full-page screenshot (lib/report/screenshot-html-playwright.ts); small HTML body needs https image URLs. Browser html-to-image is fallback.",
-        "HTML download: uses Blob URLs from the list; any not yet synced are embedded as data URLs.",
-        "CLI: `python3 scripts/generate-long-screenshot.py report.html` — same full-page idea as the Node path.",
-      ].join("\n");
     default:
       return JSON.stringify({ error: `Unknown tool: ${name}` });
   }

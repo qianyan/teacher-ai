@@ -54,6 +54,12 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+    if (photoLogicalNames.some((name) => typeof name !== "string")) {
+      return NextResponse.json(
+        { error: "photoLogicalNames must contain only strings" },
+        { status: 400 },
+      );
+    }
 
     const dynamicBodyHtml = await generateDynamicBodyHtml({
       biweeklyDateRange,
