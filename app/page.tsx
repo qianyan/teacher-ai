@@ -21,23 +21,6 @@ import {
 } from "@/lib/history-sidebar-storage";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-type GenerateStartResponse = {
-  jobId?: string;
-  status?: "queued" | "running" | "completed" | "failed";
-  pollIntervalMs?: number;
-  error?: string;
-};
-
-type GeneratePollResponse = {
-  status?: "queued" | "running" | "completed" | "failed";
-  fullHtml?: string;
-  error?: string;
-};
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export default function HomePage() {
   const defaultHydratedState = useMemo(
     () => ({
@@ -109,7 +92,7 @@ export default function HomePage() {
     setFullHtml(null);
     try {
       const photoLogicalNames = photos.map((p) => p.logicalName.trim());
-      const startRes = await fetch("/api/generate", {
+      const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -120,46 +103,16 @@ export default function HomePage() {
           photoLogicalNames,
         }),
       });
-      const startData = (await startRes.json()) as GenerateStartResponse;
-      if (!startRes.ok || !startData.jobId) {
-        throw new Error(startData.error || `HTTP ${startRes.status}`);
+      const data = (await res.json()) as { error?: string; fullHtml?: string };
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}`);
       }
-
-      const pollInterval = Math.max(1200, startData.pollIntervalMs ?? 2000);
-      const maxPollRounds = 90;
-      let completedHtml: string | null = null;
-
-      for (let i = 0; i < maxPollRounds; i++) {
-        await sleep(pollInterval);
-        const pollRes = await fetch(
-          `/api/generate?jobId=${encodeURIComponent(startData.jobId)}`,
-          {
-            method: "GET",
-            cache: "no-store",
-          },
-        );
-        const pollData = (await pollRes.json()) as GeneratePollResponse;
-        if (!pollRes.ok) {
-          throw new Error(pollData.error || `轮询失败：HTTP ${pollRes.status}`);
-        }
-        if (pollData.status === "failed") {
-          throw new Error(pollData.error || "生成失败");
-        }
-        if (pollData.status === "completed") {
-          if (!pollData.fullHtml) {
-            throw new Error("任务完成但缺少 fullHtml");
-          }
-          completedHtml = pollData.fullHtml;
-          break;
-        }
+      if (!data.fullHtml) {
+        throw new Error("No fullHtml in response");
       }
-
-      if (!completedHtml) {
-        throw new Error("生成超时，请稍后重试");
-      }
-      setFullHtml(completedHtml);
+      setFullHtml(data.fullHtml);
       try {
-        await recordHistoryAfterGenerate(completedHtml);
+        await recordHistoryAfterGenerate(data.fullHtml);
       } catch (e) {
         console.error("History save failed:", e);
       }

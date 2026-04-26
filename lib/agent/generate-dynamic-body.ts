@@ -1,36 +1,13 @@
 import { createLlmClient } from "@/lib/llm";
 import type { ChatMessage, ToolDefinition } from "@/lib/llm/types";
 import { SKILL_TOOL_DEFINITIONS, executeSkillTool } from "@/lib/agent/skill-tools";
-import { readSkillMd } from "@/lib/report/read-assets";
 
-function getMaxToolIterations(): number {
-  const n = parseInt(
-    process.env.REPORT_GENERATE_MAX_TOOL_ITERATIONS || "8",
-    10,
-  );
-  if (!Number.isFinite(n) || n < 1) return 8;
-  return Math.min(n, 24);
-}
-
-function shouldEnableToolFallback(): boolean {
-  const raw = (process.env.REPORT_GENERATE_ENABLE_TOOLS_FALLBACK || "").trim();
-  return raw === "1" || raw.toLowerCase() === "true";
-}
-
-function buildPreloadedStaticContext(): string {
-  return [
-    "=== PRELOADED SKILL.md ===",
-    readSkillMd(),
-    "=== NOTE ===",
-    "Header/footer and global page shell are assembled server-side; only output the dynamic middle fragment.",
-  ].join("\n\n");
-}
+const MAX_TOOL_ITERATIONS = 24;
 
 function buildSystemPrompt(): string {
   return `You are an expert assistant that outputs HTML for a Chinese toddler class biweekly newsletter (托班两周周报).
 
-You MUST follow the project SKILL. The full SKILL/template content is preloaded in the user message under PRELOADED blocks.
-Only call tools when the preloaded blocks are missing or clearly insufficient.
+You MUST follow the project SKILL (use tools to read get_skill_instructions and templates when needed).
 
 Your final output must be ONLY the dynamic middle of the page:
 - One or more <div class="section" style="background: ...">...</div> blocks (alternating backgrounds: first section uses background: var(--color-bg); then #fff and var(--color-bg) alternating).
@@ -79,28 +56,17 @@ export async function generateDynamicBodyHtml(
   input: GenerateInput,
 ): Promise<string> {
   const client = createLlmClient();
-  const enableToolFallback = shouldEnableToolFallback();
-  const tools: ToolDefinition[] = enableToolFallback ? SKILL_TOOL_DEFINITIONS : [];
-  const maxToolIterations = getMaxToolIterations();
-  const preloadedStaticContext = buildPreloadedStaticContext();
+  const tools: ToolDefinition[] = SKILL_TOOL_DEFINITIONS;
 
   const messages: ChatMessage[] = [
     { role: "system", content: buildSystemPrompt() },
     {
       role: "user",
-      content: `Generate the dynamic HTML fragment.
-
-Context (JSON):
-${buildUserPayload(input)}
-
-Static references (authoritative; use these first):
-${preloadedStaticContext}
-
-Then output only the fragment.`,
+      content: `Generate the dynamic HTML fragment.\n\nContext (JSON):\n${buildUserPayload(input)}\n\nCall tools if you need the full SKILL or reference HTML. Then output only the fragment.`,
     },
   ];
 
-  for (let i = 0; i < maxToolIterations; i++) {
+  for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     const res = await client.complete({ messages, tools });
     const msg = res.message;
 
@@ -129,7 +95,5 @@ Then output only the fragment.`,
     return extractHtmlFragment(text);
   }
 
-  throw new Error(
-    `Generate exceeded tool loop limit (${maxToolIterations}). Try simplifying bodyHtml or using a faster model.`,
-  );
+  throw new Error("Tool loop exceeded max iterations");
 }
