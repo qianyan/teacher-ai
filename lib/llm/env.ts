@@ -27,8 +27,9 @@ export function getOpenAiCompatibleConfig(): {
   return { apiKey, baseURL, model };
 }
 
-export function getAnthropicConfig(): { apiKey: string; model: string } {
-  const apiKey = process.env.ANTHROPIC_API_KEY || "";
-  const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-20250514";
-  return { apiKey, model };
+export function getAnthropicConfig(): { baseURL: string | undefined; apiKey: string; model: string } {
+  const baseURL = process.env.LLM_BASE_URL || undefined;
+  const apiKey = process.env.ANTHROPIC_API_KEY || process.env.LLM_API_KEY || "";
+  const model = process.env.ANTHROPIC_MODEL || process.env.LLM_MODEL || "deepseek-v4-pro";
+  return { baseURL, apiKey, model };
 }

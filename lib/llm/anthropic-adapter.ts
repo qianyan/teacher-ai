@@ -80,10 +80,16 @@ function toAnthropicTools(
 }
 
 export function createAnthropicClient(opts: {
+  baseURL: string | undefined;
   apiKey: string;
   model: string;
 }): LlmClient {
-  const client = new Anthropic({ apiKey: opts.apiKey });
+  let client: Anthropic;
+  if (opts.baseURL) {
+    client = new Anthropic({ apiKey: opts.apiKey, baseURL: opts.baseURL });
+  } else {
+    client = new Anthropic({ apiKey: opts.apiKey });
+  }
   const model = opts.model;
 
   return {

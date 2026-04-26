@@ -8,11 +8,11 @@ export type { ChatMessage, LlmClient, ToolDefinition } from "./types";
 export function createLlmClient(): LlmClient {
   const provider = getLlmProvider();
   if (provider === "anthropic") {
-    const { apiKey, model } = getAnthropicConfig();
+    const { baseURL, apiKey, model } = getAnthropicConfig();
     if (!apiKey) {
       throw new Error("ANTHROPIC_API_KEY is required when LLM_PROVIDER=anthropic");
     }
-    return createAnthropicClient({ apiKey, model });
+    return createAnthropicClient({ baseURL, apiKey, model });
   }
   const { apiKey, baseURL, model } = getOpenAiCompatibleConfig();
   if (!apiKey) {
@@ -20,5 +20,5 @@ export function createLlmClient(): LlmClient {
       "Set LLM_API_KEY or OPENAI_API_KEY (or a provider-specific key) for openai_compatible",
     );
   }
-  return createOpenAiCompatibleClient({ apiKey, baseURL, model });
+  return createOpenAiCompatibleClient({ apiKey, baseURL, model, enableThinking: false});
 }

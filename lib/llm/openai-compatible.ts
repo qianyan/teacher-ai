@@ -68,6 +68,7 @@ export function createOpenAiCompatibleClient(opts: {
   apiKey: string;
   baseURL?: string;
   model: string;
+  enableThinking?: boolean;
 }): LlmClient {
   const client = new OpenAI({
     apiKey: opts.apiKey,
@@ -83,6 +84,7 @@ export function createOpenAiCompatibleClient(opts: {
         messages: toOpenAiMessages(messages),
         tools: tools as OpenAI.Chat.Completions.ChatCompletionTool[] | undefined,
         max_tokens: maxTokens ?? (Number.isFinite(envMax) ? envMax : 8192),
+        ...(opts.enableThinking ? { thinking: { type: "enabled" } } : { thinking: { type: "disabled" } }),
       });
       const choice = res.choices?.[0];
       if (!choice?.message) {
