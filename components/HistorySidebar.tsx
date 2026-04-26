@@ -62,7 +62,7 @@ export function HistorySidebar({
         ) : (
           <ul style={list}>
             {history.map((row) => (
-              <li key={row.id} style={item}>
+              <li key={row.id} className="history-list-item">
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text)" }}>
                     {row.snapshot.biweeklyDateRange}
@@ -166,14 +166,3 @@ const list: CSSProperties = {
   overflowY: "auto",
 };
 
-const item: CSSProperties = {
-  display: "flex",
-  flexWrap: "wrap",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 10,
-  padding: "12px 12px",
-  borderRadius: "var(--radius-sm)",
-  border: "1px solid var(--border)",
-  background: "var(--panel-elevated)",
-};

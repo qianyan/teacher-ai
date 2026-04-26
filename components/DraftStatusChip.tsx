@@ -21,8 +21,8 @@ export function DraftStatusChip({ draftSavedAt, draftError, onClearDraft }: Prop
       : null;
 
   return (
-    <div style={wrap}>
-      <span style={iconWrap} aria-hidden>
+    <div className="draft-chip">
+      <span className="draft-chip__icon" aria-hidden>
         <IconDraft />
       </span>
       <div style={textCol}>
@@ -64,23 +64,6 @@ function IconDraft() {
     </svg>
   );
 }
-
-const wrap: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 10,
-  padding: "8px 12px",
-  borderRadius: 12,
-  border: "1px solid var(--border)",
-  background: "var(--panel-elevated)",
-  maxWidth: "min(100%, 360px)",
-};
-
-const iconWrap: CSSProperties = {
-  color: "var(--accent)",
-  flexShrink: 0,
-  display: "flex",
-};
 
 const textCol: CSSProperties = {
   display: "flex",

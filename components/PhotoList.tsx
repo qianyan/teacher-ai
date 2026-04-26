@@ -241,6 +241,7 @@ export function PhotoList({ photos, onChange }: Props) {
                   role="option"
                   aria-selected={isSel}
                   draggable
+                  className="photo-filmstrip-thumb"
                   title={p.logicalName}
                   onClick={() => setSelectedId(p.id)}
                   onDragOver={(e) => {
@@ -261,10 +262,8 @@ export function PhotoList({ photos, onChange }: Props) {
                   }}
                   onDragEnd={() => setDraggingIndex(null)}
                   style={{
-                    ...filmThumb,
-                    outline: isSel ? "2px solid var(--accent)" : "1px solid var(--border)",
-                    outlineOffset: 2,
                     opacity: isDragging ? 0.55 : 1,
+                    outline: "none",
                   }}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -407,18 +406,6 @@ const filmstripWrap: CSSProperties = {
   marginBottom: 4,
   scrollbarWidth: "thin",
   WebkitOverflowScrolling: "touch",
-};
-
-const filmThumb: CSSProperties = {
-  flex: "0 0 auto",
-  width: 88,
-  height: 56,
-  padding: 0,
-  border: "none",
-  borderRadius: 8,
-  overflow: "hidden",
-  cursor: "pointer",
-  background: "var(--bg)",
 };
 
 const smallBtn: CSSProperties = {

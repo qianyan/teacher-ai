@@ -2,6 +2,7 @@
 
 import { DraftStatusChip } from "@/components/DraftStatusChip";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import Image from "next/image";
 import type { CSSProperties } from "react";
 
 type Props = {
@@ -24,13 +25,32 @@ export function AppHeader({
   return (
     <header className="app-header" style={headerStyle}>
       <div style={heroBlock}>
-        <h1 style={{ margin: "0 0 8px", fontSize: "1.5rem", fontWeight: 700, color: "var(--text)" }}>
-          托班两周周报 · Teacher AI
-        </h1>
-        <p style={{ margin: 0, color: "var(--text-muted)", fontSize: 15, lineHeight: 1.55, maxWidth: "56ch" }}>
-          编辑开篇与正文、导入照片并核对文件名，生成 HTML 预览与长图 PNG。需配置服务端 LLM
-          环境变量。
-        </p>
+        <div className="app-brand-row">
+          <div className="app-brand-mark" title="Teacher AI">
+            <Image
+              src="/teacher-ai-icon.png"
+              alt="Teacher AI"
+              width={52}
+              height={52}
+              priority
+            />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p className="app-brand-kicker">
+              <span className="app-brand-kicker-dot" aria-hidden />
+              简报工作台
+            </p>
+            <h1 className="app-brand-title">托班两周周报 · Teacher AI</h1>
+            <p className="app-hero-lede">
+              像拼贴手帐一样整理双周内容：写好开篇与板块要点、拖好照片顺序，一键生成预览与长图。
+            </p>
+            <div className="app-hero-pills" aria-hidden>
+              <span className="app-hero-pill">HTML 预览</span>
+              <span className="app-hero-pill app-hero-pill--warm">长图 PNG</span>
+              <span className="app-hero-pill">本机草稿</span>
+            </div>
+          </div>
+        </div>
       </div>
       <div style={toolbar}>
         <DraftStatusChip

@@ -150,7 +150,12 @@ export default function HomePage() {
     return (
       <SessionUnlock>
         <main className="app-shell">
-          <p style={{ color: "var(--text-muted)", margin: 0 }}>加载草稿…</p>
+          <div className="app-hydrate-loader" role="status" aria-live="polite">
+            <span className="app-hydrate-loader__face" aria-hidden>
+              📒
+            </span>
+            <p className="app-hydrate-loader__text">正在唤醒你的简报草稿…</p>
+          </div>
         </main>
       </SessionUnlock>
     );
@@ -183,7 +188,7 @@ export default function HomePage() {
         />
 
         <div className="app-grid app-grid--main">
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          <div className="app-stack-col" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <section className="app-panel">
               <h2 className="app-section-title">版面与日期</h2>
               <label className="app-label" htmlFor="biweekly-range">
@@ -256,7 +261,7 @@ export default function HomePage() {
           </aside>
         </div>
 
-        <section className="app-panel" style={{ marginTop: 20 }}>
+        <section className="app-panel app-preview-section" style={{ marginTop: 20 }}>
           <PreviewPanel fullHtml={fullHtml} photos={photos} />
         </section>
       </main>

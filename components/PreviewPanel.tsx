@@ -156,7 +156,7 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <button
             type="button"
-            className="btn btn--secondary"
+            className="btn btn--secondary preview-toolbar-btn"
             disabled={!srcDoc || pngExporting || htmlBusy}
             onClick={() => setFullscreenOpen(true)}
           >
@@ -164,7 +164,7 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
           </button>
           <button
             type="button"
-            className="btn btn--primary"
+            className="btn btn--primary preview-toolbar-btn"
             disabled={!srcDoc || pngExporting || htmlBusy}
             onClick={handleExportPng}
           >
@@ -172,7 +172,7 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
           </button>
           <button
             type="button"
-            className="btn btn--secondary"
+            className="btn btn--secondary preview-toolbar-btn"
             disabled={!srcDoc || htmlBusy || pngExporting}
             onClick={handleDownloadHtml}
           >
@@ -185,15 +185,9 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
           {exportError}
         </p>
       )}
-      <p style={{ margin: "0 0 14px", fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>
-        导出长图优先由服务端 Playwright 整页截图（与{" "}
-        <code style={{ fontSize: 12 }}>scripts/generate-long-screenshot.py</code>{" "}
-        一致）；请保持照片「Blob：已同步」以控制 HTML 体积。失败或超限时回退为浏览器截图。
-        本机需 <code style={{ fontSize: 12 }}>npx playwright install chromium</code>。
-      </p>
       <div style={frameOuter}>
         <div style={frameChrome} aria-hidden />
-        <div style={scrollRegion}>
+        <div className="preview-scroll-well">
           {srcDoc ? (
             <iframe
               ref={iframeRef}
@@ -209,14 +203,12 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
               }}
             />
           ) : (
-            <div style={emptyState}>
-              <div style={emptyIcon} aria-hidden>
-                ◇
+            <div className="preview-empty" style={emptyState}>
+              <div className="preview-empty__icon" aria-hidden>
+                ✦
               </div>
-              <p style={{ margin: "0 0 8px", fontWeight: 600, color: "var(--text)", fontSize: 15 }}>
-                尚无预览
-              </p>
-              <p style={{ margin: 0, fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6, maxWidth: 360 }}>
+              <p className="preview-empty__title">尚无预览</p>
+              <p className="preview-empty__hint">
                 填写内容与照片后点击「生成预览 HTML」，成功后将在此显示与导出一致、1080px 宽的版面。
               </p>
             </div>
@@ -285,8 +277,7 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
                   display: "flex",
                   flexDirection: "column",
                   overflow: "hidden",
-                  background:
-                    "linear-gradient(180deg, #ebe6df 0%, #e8e3dc 100%)",
+                  background: "var(--bg-gradient)",
                   borderRadius: "var(--radius)",
                   padding: "12px 16px 16px",
                   boxShadow: "var(--shadow-md)",
@@ -339,13 +330,6 @@ const frameChrome: CSSProperties = {
   borderBottom: "1px solid var(--border)",
 };
 
-const scrollRegion: CSSProperties = {
-  maxHeight: "70vh",
-  overflow: "auto",
-  background: "linear-gradient(180deg, #ebe6df 0%, #e8e3dc 100%)",
-  padding: "12px 0 20px",
-};
-
 const emptyState: CSSProperties = {
   padding: "48px 24px 56px",
   textAlign: "center",
@@ -353,9 +337,3 @@ const emptyState: CSSProperties = {
   margin: "0 auto",
 };
 
-const emptyIcon: CSSProperties = {
-  fontSize: 32,
-  color: "var(--border)",
-  marginBottom: 12,
-  opacity: 0.85,
-};
