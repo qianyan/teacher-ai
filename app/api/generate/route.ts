@@ -6,7 +6,7 @@ import {
 } from "@/lib/report/read-assets";
 import { NextResponse } from "next/server";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 export type GenerateRequestBody = {
   biweeklyDateRange: string;
