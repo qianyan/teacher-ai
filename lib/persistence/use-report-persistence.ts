@@ -7,14 +7,16 @@ import {
   revokePhotoEntryBlobUrls,
 } from "./deserialize";
 import {
-  addHistory,
   clearDraftStore,
-  deleteHistory,
   getDraft,
-  getHistoryEntry,
-  listHistory,
   putDraft,
 } from "./idb";
+import {
+  addHistoryRemote,
+  deleteHistoryRemote,
+  getHistoryEntryRemote,
+  listHistoryRemote,
+} from "./history-api";
 import { snapshotFromState } from "./serialize";
 import type { HistoryRecord, HydratedEditorState } from "./types";
 
@@ -113,7 +115,7 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
           applyHydratedState(h);
           setDraftSavedAt(draft.updatedAt);
         }
-        setHistory(await listHistory());
+        setHistory(await listHistoryRemote());
       } catch (e) {
         console.error(e);
         setDraftError(e instanceof Error ? e.message : "加载草稿失败");
@@ -189,15 +191,15 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
         ...stateRef.current,
         fullHtml: newFullHtml,
       });
-      await addHistory(snap);
-      setHistory(await listHistory());
+      await addHistoryRemote(snap);
+      setHistory(await listHistoryRemote());
     },
     [],
   );
 
   const loadHistoryEntry = useCallback(
     async (id: string) => {
-      const row = await getHistoryEntry(id);
+      const row = await getHistoryEntryRemote(id);
       if (!row) return;
       revokePhotoEntryBlobUrls(stateRef.current.photos);
       const h = hydrateStateFromSnapshot(row.snapshot);
@@ -224,8 +226,8 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
   );
 
   const deleteHistoryEntry = useCallback(async (id: string) => {
-    await deleteHistory(id);
-    setHistory(await listHistory());
+    await deleteHistoryRemote(id);
+    setHistory(await listHistoryRemote());
   }, []);
 
   const clearDraftAndReset = useCallback(async () => {

@@ -4,7 +4,8 @@ import type { PhotoEntry } from "@/lib/photos/inject-blobs";
 export type PersistedPhoto = {
   id: string;
   logicalName: string;
-  fileBlob: Blob;
+  /** Local IndexedDB snapshots include it; remote DB snapshots omit it. */
+  fileBlob?: Blob | null;
   remoteUrl: string | null;
   remotePathname: string | null;
   uploadStatus: PhotoEntry["uploadStatus"];

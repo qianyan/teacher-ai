@@ -2,13 +2,18 @@ import type { PhotoEntry } from "@/lib/photos/inject-blobs";
 import type { HydratedEditorState, PersistedPhoto, ReportSnapshot } from "./types";
 
 export function photoEntryFromPersisted(p: PersistedPhoto): PhotoEntry {
-  const file =
-    p.fileBlob instanceof File
-      ? p.fileBlob
-      : new File([p.fileBlob], p.logicalName, {
-          type: p.fileBlob.type || "application/octet-stream",
-        });
-  const blobUrl = URL.createObjectURL(file);
+  const blob = p.fileBlob;
+  const hasLocalBlob = blob instanceof Blob;
+  const file = hasLocalBlob
+    ? blob instanceof File
+      ? blob
+      : new File([blob], p.logicalName, {
+          type: blob.type || "application/octet-stream",
+        })
+    : new File([], p.logicalName, { type: "application/octet-stream" });
+  const blobUrl = hasLocalBlob
+    ? URL.createObjectURL(file)
+    : p.remoteUrl || URL.createObjectURL(file);
   const hadRemote = Boolean(p.remoteUrl);
   let uploadStatus = p.uploadStatus;
   if (hadRemote) {
