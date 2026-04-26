@@ -4,7 +4,7 @@
  */
 let sharedCtx: AudioContext | null = null;
 
-function getAudioContext(): AudioContext | null {
+export function getSharedAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
   const C = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
   if (!C) return null;
@@ -12,6 +12,10 @@ function getAudioContext(): AudioContext | null {
     sharedCtx = new C();
   }
   return sharedCtx;
+}
+
+function getAudioContext(): AudioContext | null {
+  return getSharedAudioContext();
 }
 
 function scheduleTone(

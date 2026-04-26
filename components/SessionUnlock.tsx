@@ -9,7 +9,9 @@
  */
 
 import { playClassroomUnlockFanfare } from "@/lib/sounds/play-classroom-unlock-fanfare";
+import { preloadUnlockChildVoice, scheduleUnlockChildVoice } from "@/lib/sounds/unlock-child-voice";
 import { Fredoka, ZCOOL_KuaiLe } from "next/font/google";
+import Image from "next/image";
 import {
   type CSSProperties,
   type KeyboardEvent,
@@ -40,6 +42,9 @@ const STORAGE_KEY = "teacher-ai-unlocked";
 
 const ROTATE_MS = 520;
 const SPLIT_MS = 720;
+/** 与开门动效错开，避免与 fanfare 主音完全重叠 */
+const CHILD_VOICE_DELAY_SEC = 1.0;
+const CHILD_VOICE_DELAY_REDUCED_MOTION_SEC = 0.4;
 
 function lockPinFromEnv(): string {
   return process.env.NEXT_PUBLIC_APP_LOCK_PIN?.trim() ?? "";
@@ -113,6 +118,10 @@ export function SessionUnlock({ children }: Props) {
   }, [lockEnabled]);
 
   useEffect(() => {
+    preloadUnlockChildVoice();
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (shakeTimer.current) clearTimeout(shakeTimer.current);
       if (rotateTimer.current) clearTimeout(rotateTimer.current);
@@ -145,11 +154,13 @@ export function SessionUnlock({ children }: Props) {
 
   const runUnlockAnimation = useCallback(() => {
     if (prefersReducedMotion()) {
+      scheduleUnlockChildVoice(CHILD_VOICE_DELAY_REDUCED_MOTION_SEC);
       setFx("success");
       splitTimer.current = setTimeout(() => completeUnlock(), 120);
       return;
     }
     playClassroomUnlockFanfare();
+    scheduleUnlockChildVoice(CHILD_VOICE_DELAY_SEC);
     setFx("success");
     setRevealPhase("rotate");
     rotateTimer.current = setTimeout(() => {
@@ -240,12 +251,16 @@ export function SessionUnlock({ children }: Props) {
           <p className="session-unlock-hint">
             对妈妈说悄悄话、对小朋友念咒语都可以：输入一次即可继续。我们<strong>不</strong>把密语存进小饼干里。
           </p>
+          <p
+            className="visually-hidden"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {unlocking ? "小朋友说：妈妈，我爱你哟" : ""}
+          </p>
 
           <div className={barClass}>
-            <div
-              ref={keyholeRef}
-              className={`session-unlock-keyhole-wrap${unlocking ? " session-unlock-keyhole-wrap--unlocking" : ""}`}
-            >
+            <div ref={keyholeRef} className="session-unlock-keyhole-wrap">
               <div
                 className={
                   unlocking
@@ -325,52 +340,25 @@ function SessionUnlockBackdrop() {
   );
 }
 
-/** 锁孔里的小圆脸：普通态眨眼，解锁中变成超开心 */
+/** 锁孔里的小朋友照片，解锁中轻微弹一下呼应祝福语音 */
 function KeyholeMascot({ unlocking }: { unlocking: boolean }) {
   return (
-    <svg
-      viewBox="0 0 32 32"
-      className={`session-unlock-mascot-svg${unlocking ? " session-unlock-mascot-svg--unlocking" : ""}`}
-      aria-hidden
+    <div
+      className={
+        unlocking
+          ? "session-unlock-mascot-photo session-unlock-mascot-photo--unlocking"
+          : "session-unlock-mascot-photo"
+      }
     >
-      {unlocking ? (
-        <>
-          <path
-            d="M9.5 12.5C9.5 10.5 10.5 8.5 12.5 8.5C14.5 8.5 15.5 10.5 15.5 12.5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-          />
-          <path
-            d="M16.5 12.5C16.5 10.5 17.5 8.5 19.5 8.5C21.5 8.5 22.5 10.5 22.5 12.5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-          />
-          <path
-            d="M9 20C11 24 16 25.5 22 20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-          />
-        </>
-      ) : (
-        <>
-          <circle cx="11" cy="12.5" r="2" fill="currentColor" />
-          <circle cx="21" cy="12.5" r="2" fill="currentColor" />
-          <path
-            d="M11 20C13 22 15.5 23.5 18 22.5C19.2 22 20.2 20.8 20.5 20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-        </>
-      )}
-    </svg>
+      <Image
+        src="/images/unlock-boy.png"
+        alt=""
+        width={32}
+        height={32}
+        className="session-unlock-mascot-img"
+        unoptimized
+      />
+    </div>
   );
 }
 
