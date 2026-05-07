@@ -21,3 +21,6 @@ npm-debug.log*
 
 # vercel
 .vercel
+
+# dev ignore
+pnpm-lock.yaml
