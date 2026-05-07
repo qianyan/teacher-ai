@@ -1,15 +1,18 @@
 "use client";
 
 /**
- * Session PIN gate (client-side only).
- *
- * Future (WebAuthn / 通行密钥 / Touch ID): register a platform authenticator credential,
- * then call `navigator.credentials.get({ publicKey, mediation: 'conditional' })` with a
- * server-issued challenge. Requires registration UX + verifier — not implemented here.
+ * Session PIN gate (client-side PIN compare) plus optional WebAuthn (passkeys / 指纹 / 面容).
  */
 
 import { playClassroomUnlockFanfare } from "@/lib/sounds/play-classroom-unlock-fanfare";
 import { preloadUnlockChildVoice, scheduleUnlockChildVoice } from "@/lib/sounds/unlock-child-voice";
+import {
+  browserSupportsWebAuthn,
+  startAuthentication,
+  startRegistration,
+  type PublicKeyCredentialCreationOptionsJSON,
+  type PublicKeyCredentialRequestOptionsJSON,
+} from "@simplewebauthn/browser";
 import { Fredoka, ZCOOL_KuaiLe } from "next/font/google";
 import Image from "next/image";
 import {
@@ -75,6 +78,10 @@ export function SessionUnlock({ children }: Props) {
   const [fx, setFx] = useState<"none" | "shake" | "success">("none");
   const [revealPhase, setRevealPhase] = useState<RevealPhase>("idle");
   const [postUnlockFiesta, setPostUnlockFiesta] = useState(false);
+  const [webauthnReady, setWebauthnReady] = useState(false);
+  const [passkeyCount, setPasskeyCount] = useState(0);
+  const [webauthnBusy, setWebauthnBusy] = useState(false);
+  const [passkeyMsg, setPasskeyMsg] = useState<string | null>(null);
   const shakeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rotateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const splitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -116,6 +123,29 @@ export function SessionUnlock({ children }: Props) {
     }
     setChecked(true);
   }, [lockEnabled]);
+
+  const refreshPasskeyStatus = useCallback(async () => {
+    if (!lockEnabled) return;
+    try {
+      const r = await fetch("/api/session/webauthn/status");
+      const j = (await r.json()) as { webauthnReady?: boolean; passkeyCount?: number };
+      if (r.ok) {
+        setWebauthnReady(Boolean(j.webauthnReady));
+        setPasskeyCount(typeof j.passkeyCount === "number" ? j.passkeyCount : 0);
+      } else {
+        setWebauthnReady(false);
+        setPasskeyCount(0);
+      }
+    } catch {
+      setWebauthnReady(false);
+      setPasskeyCount(0);
+    }
+  }, [lockEnabled]);
+
+  useEffect(() => {
+    if (!lockEnabled || !checked) return;
+    void refreshPasskeyStatus();
+  }, [lockEnabled, checked, refreshPasskeyStatus]);
 
   useEffect(() => {
     preloadUnlockChildVoice();
@@ -172,6 +202,96 @@ export function SessionUnlock({ children }: Props) {
     }, ROTATE_MS + SPLIT_MS);
   }, [completeUnlock, updateUnlockAxis]);
 
+  const unlockWithPasskey = useCallback(async () => {
+    if (!lockEnabled || webauthnBusy || fx === "success") return;
+    setWebauthnBusy(true);
+    setError(null);
+    setPasskeyMsg(null);
+    try {
+      const optRes = await fetch("/api/session/webauthn/auth/options", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const optJson = (await optRes.json()) as {
+        options?: PublicKeyCredentialRequestOptionsJSON;
+        challengeId?: string;
+        error?: string;
+      };
+      if (!optRes.ok || !optJson.options || !optJson.challengeId) {
+        setError(
+          typeof optJson.error === "string" ? optJson.error : "设备解锁准备失败，悄悄话方式还可以用哦～",
+        );
+        return;
+      }
+      const credential = await startAuthentication({ optionsJSON: optJson.options });
+      const verRes = await fetch("/api/session/webauthn/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ challengeId: optJson.challengeId, credential }),
+      });
+      const verJson = (await verRes.json()) as { ok?: boolean; error?: string };
+      if (!verRes.ok || !verJson.ok) {
+        setError(typeof verJson.error === "string" ? verJson.error : "验证没通过，再试一次？");
+        return;
+      }
+      runUnlockAnimation();
+    } catch {
+      setError("验证被取消，或设备暂时不可用。密语开门一直都在～");
+    } finally {
+      setWebauthnBusy(false);
+    }
+  }, [lockEnabled, webauthnBusy, fx, runUnlockAnimation]);
+
+  const registerPasskey = useCallback(async () => {
+    if (!lockEnabled || webauthnBusy || fx === "success") return;
+    if (!pinInput.trim()) {
+      setError("先在小框里输入密语，我们再保存通行密钥哦～");
+      return;
+    }
+    setWebauthnBusy(true);
+    setError(null);
+    setPasskeyMsg(null);
+    try {
+      const optRes = await fetch("/api/session/webauthn/register/options", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: pinInput }),
+      });
+      const optJson = (await optRes.json()) as {
+        options?: PublicKeyCredentialCreationOptionsJSON;
+        challengeId?: string;
+        error?: string;
+      };
+      if (!optRes.ok || !optJson.options || !optJson.challengeId) {
+        setError(typeof optJson.error === "string" ? optJson.error : "没法开始注册通行密钥");
+        return;
+      }
+      const credential = await startRegistration({ optionsJSON: optJson.options });
+      const verRes = await fetch("/api/session/webauthn/register/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pin: pinInput,
+          challengeId: optJson.challengeId,
+          credential,
+        }),
+      });
+      const verJson = (await verRes.json()) as { ok?: boolean; error?: string };
+      if (!verRes.ok || !verJson.ok) {
+        setError(typeof verJson.error === "string" ? verJson.error : "保存通行密钥失败");
+        return;
+      }
+      await refreshPasskeyStatus();
+      setPinInput("");
+      setPasskeyMsg("通行密钥存好啦：下次可以试试指纹、面容或设备 PIN 嗖一下开门～");
+    } catch {
+      setError("注册被打断，或本机暂不支持。密语方式不受影响～");
+    } finally {
+      setWebauthnBusy(false);
+    }
+  }, [lockEnabled, webauthnBusy, fx, pinInput, refreshPasskeyStatus]);
+
   const submit = useCallback(() => {
     if (!lockEnabled) return;
     if (pinInput === expectedPin) {
@@ -219,6 +339,7 @@ export function SessionUnlock({ children }: Props) {
 
     const unlocking = fx === "success";
     const splitting = revealPhase === "split";
+    const showWebauthn = webauthnReady && browserSupportsWebAuthn();
 
     return (
       <div
@@ -283,22 +404,52 @@ export function SessionUnlock({ children }: Props) {
               onChange={(e) => {
                 setPinInput(e.target.value);
                 setError(null);
+                setPasskeyMsg(null);
               }}
               onKeyDown={handleKeyDown}
               className="session-unlock-field"
               placeholder="唰唰唰，输入密语"
-              disabled={unlocking}
+              disabled={unlocking || webauthnBusy}
             />
             <button
               type="button"
               className={`session-unlock-submit${unlocking ? " session-unlock-submit--unlocking" : ""}`}
               onClick={submit}
               aria-label="开门啦"
-              disabled={unlocking}
+              disabled={unlocking || webauthnBusy}
             >
               <PadlockIcon open={unlocking} />
             </button>
           </div>
+
+          {showWebauthn && (
+            <div className="session-unlock-passkey-actions">
+              {passkeyCount > 0 && (
+                <button
+                  type="button"
+                  className="session-unlock-passkey-btn session-unlock-passkey-btn--primary"
+                  onClick={() => void unlockWithPasskey()}
+                  disabled={unlocking || webauthnBusy}
+                >
+                  用指纹 / 面容 / 本机验证解锁
+                </button>
+              )}
+              <button
+                type="button"
+                className="session-unlock-passkey-btn"
+                onClick={() => void registerPasskey()}
+                disabled={unlocking || webauthnBusy}
+              >
+                保存通行密钥到本机（需先在上方输入密语）
+              </button>
+            </div>
+          )}
+
+          {passkeyMsg && (
+            <p className="session-unlock-passkey-msg" role="status">
+              {passkeyMsg}
+            </p>
+          )}
 
           {error && (
             <p className="session-unlock-error" role="alert">
