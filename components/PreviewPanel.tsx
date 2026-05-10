@@ -2,7 +2,9 @@
 
 import { captureIframeDocumentAsPngBlob } from "@/lib/photos/capture-iframe-png";
 import {
+  allPhotosPreviewReady,
   buildPhotoBlobUrlMap,
+  buildPhotoInjectionMapForLongScreenshot,
   buildPhotoUrlMapForPersist,
   injectPhotoBlobUrls,
   type PhotoEntry,
@@ -61,7 +63,8 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
     setExportError(null);
     setPngExporting(true);
     try {
-      const html = injectPhotoBlobUrls(fullHtml, buildPhotoBlobUrlMap(photos));
+      const shotMap = await buildPhotoInjectionMapForLongScreenshot(photos);
+      const html = injectPhotoBlobUrls(fullHtml, shotMap);
       const htmlBytes = new Blob([html]).size;
       const vercelBodyLimit = 4_450_000;
 
@@ -157,7 +160,9 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
           <button
             type="button"
             className="btn btn--secondary preview-toolbar-btn"
-            disabled={!srcDoc || pngExporting || htmlBusy}
+            disabled={
+              !srcDoc || pngExporting || htmlBusy || !allPhotosPreviewReady(photos)
+            }
             onClick={() => setFullscreenOpen(true)}
           >
             全屏预览
@@ -165,7 +170,9 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
           <button
             type="button"
             className="btn btn--primary preview-toolbar-btn"
-            disabled={!srcDoc || pngExporting || htmlBusy}
+            disabled={
+              !srcDoc || pngExporting || htmlBusy || !allPhotosPreviewReady(photos)
+            }
             onClick={handleExportPng}
           >
             {pngExporting ? "导出中…" : "导出长图 PNG"}
@@ -173,7 +180,9 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
           <button
             type="button"
             className="btn btn--secondary preview-toolbar-btn"
-            disabled={!srcDoc || htmlBusy || pngExporting}
+            disabled={
+              !srcDoc || htmlBusy || pngExporting || !allPhotosPreviewReady(photos)
+            }
             onClick={handleDownloadHtml}
           >
             {htmlBusy ? "准备中…" : "下载 HTML"}
