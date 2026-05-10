@@ -1,13 +1,15 @@
-import { del } from "@vercel/blob";
 import { NextResponse } from "next/server";
+import { objectPathFromSupabasePublicUrl } from "@/lib/server/parse-supabase-storage-public-url";
+import { getReportPhotosBucket } from "@/lib/server/report-photos-bucket";
+import { getSupabaseAdminClient } from "@/lib/server/supabase-admin";
 
 /**
- * Deletes a blob by public URL (used when user renames or removes a photo).
+ * Deletes an object in the report-photos bucket by public URL (rename / remove photo).
  */
 export async function POST(request: Request): Promise<NextResponse> {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
     return NextResponse.json(
-      { error: "BLOB_READ_WRITE_TOKEN is not configured" },
+      { error: "SUPABASE_SERVICE_ROLE_KEY is not configured" },
       { status: 503 },
     );
   }
@@ -24,8 +26,19 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Body must include a string \"url\"" }, { status: 400 });
   }
 
+  const objectPath = objectPathFromSupabasePublicUrl(url);
+  if (!objectPath) {
+    return NextResponse.json({ error: "Not a report photo URL for this project" }, { status: 400 });
+  }
+
+  const bucket = getReportPhotosBucket();
+
   try {
-    await del(url, { token: process.env.BLOB_READ_WRITE_TOKEN });
+    const supabase = getSupabaseAdminClient();
+    const { error } = await supabase.storage.from(bucket).remove([objectPath]);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
     return NextResponse.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Delete failed";

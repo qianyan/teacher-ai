@@ -20,7 +20,6 @@
     "@tiptap/pm": "^2.11.5",
     "@tiptap/react": "^2.11.5",
     "@tiptap/starter-kit": "^2.11.5",
-    "@vercel/blob": "^2.3.3",
     "e2b": "^2.19.5",
     "heic2any": "^0.0.4",
     "html-to-image": "^1.11.13",
@@ -33,14 +32,14 @@
     "sonner": "^2.0.7"
   },
   "devDependencies": {
-    "dotenv": "^16.4.5",
-    "tsx": "^4.19.2",
     "@eslint/eslintrc": "^3.2.0",
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "dotenv": "^16.4.5",
     "eslint": "^9.17.0",
     "eslint-config-next": "^15.1.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.0"
   }
 }

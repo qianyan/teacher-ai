@@ -10,7 +10,7 @@ import {
   isHeicLikeFile,
   normalizePhotoFileForUpload,
 } from "@/lib/photos/heic-preview";
-import { uploadPhotoEntryToBlob } from "@/lib/photos/upload-report-blobs";
+import { uploadPhotoEntryToStorage } from "@/lib/photos/upload-report-storage";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PhotoPreviewModal } from "@/components/PhotoPreviewModal";
 import { toastHeicImportFailed, toastPhotoRemoved } from "@/lib/user-toast";
@@ -126,7 +126,7 @@ export function PhotoList({ photos, onChange }: Props) {
               x.id === snapshot.id ? { ...x, uploadStatus: "uploading", uploadError: null } : x,
             ),
           );
-          const result = await uploadPhotoEntryToBlob(snapshot);
+          const result = await uploadPhotoEntryToStorage(snapshot);
           onChange((prev) =>
             prev.map((x) => {
               if (x.id !== snapshot.id) return x;
