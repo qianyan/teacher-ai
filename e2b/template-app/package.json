@@ -1,0 +1,8 @@
+{
+  "name": "teacher-ai-long-screenshot-runner",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "playwright": "1.59.1"
+  }
+}

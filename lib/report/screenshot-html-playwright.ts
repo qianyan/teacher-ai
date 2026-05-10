@@ -1,5 +1,7 @@
 import type { Browser, Page } from "playwright-core";
 
+const LOG = "[long-screenshot]";
+
 /** Matches scripts/generate-long-screenshot.py (Playwright CLI defaults). */
 const VIEWPORT_WIDTH = 1080;
 const VIEWPORT_HEIGHT = 800;
@@ -7,6 +9,10 @@ const NAV_TIMEOUT_MS = 120_000;
 
 async function launchBrowser(): Promise<Browser> {
   if (process.env.VERCEL === "1") {
+    console.info(`${LOG} playwright: launch`, {
+      where: "this Node process",
+      bundle: "@sparticuz/chromium + playwright-core (Vercel serverless)",
+    });
     const chromiumBin = (await import("@sparticuz/chromium")).default;
     const { chromium } = await import("playwright-core");
     return chromium.launch({
@@ -16,6 +22,10 @@ async function launchBrowser(): Promise<Browser> {
     });
   }
 
+  console.info(`${LOG} playwright: launch`, {
+    where: "this Node process",
+    bundle: "playwright (local chromium — run npx playwright install chromium if missing)",
+  });
   const { chromium } = await import("playwright");
   return chromium.launch({
     headless: true,

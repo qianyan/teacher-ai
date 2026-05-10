@@ -2,10 +2,13 @@ import { runGenerateLongScreenshot } from "@/lib/report/run-generate-long-screen
 import { NextResponse } from "next/server";
 
 /**
- * Full-page PNG via Node Playwright (`lib/report/screenshot-html-playwright.ts`).
- * Request body must stay under Vercel’s limit (~4.5MB): use https image URLs (Blob), not huge base64.
+ * Full-page PNG via Playwright. With `E2B_API_KEY` + `E2B_LONG_SCREENSHOT_TEMPLATE`, runs in E2B;
+ * otherwise in-process (`lib/report/screenshot-html-playwright.ts`).
+ * Request body should stay under Vercel’s limit (~4.5MB): prefer https Blob URLs (photos are PNG after HEIC normalization); unsynced locals still use data URLs.
  */
 export const maxDuration = 120;
+
+const LOG = "[long-screenshot]";
 
 export async function POST(request: Request) {
   let html: unknown;
@@ -23,8 +26,12 @@ export async function POST(request: Request) {
     );
   }
 
+  const htmlBytes = Buffer.byteLength(html, "utf8");
+  console.info(`${LOG} api: POST`, { htmlBytes });
+
   try {
     const png = await runGenerateLongScreenshot(html);
+    console.info(`${LOG} api: 200 OK`, { pngBytes: png.length });
     return new NextResponse(new Uint8Array(png), {
       status: 200,
       headers: {
@@ -34,6 +41,7 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Screenshot failed";
+    console.error(`${LOG} api: 500`, { message });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

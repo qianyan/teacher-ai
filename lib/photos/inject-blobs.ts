@@ -2,7 +2,7 @@
  * Client-only: map data-report-photo="PREFIX:INDEX" to blob URLs from logical filenames.
  */
 
-import { blobUrlToDataUrl, isHeicLikeFile } from "@/lib/photos/heic-preview";
+import { isHeicLikeFile } from "@/lib/photos/heic-preview";
 
 export { allPhotosPreviewReady } from "@/lib/photos/heic-preview";
 
@@ -11,7 +11,7 @@ export type PhotoEntry = {
   file: File;
   /** e.g. 探究1.jpg — must end with digits before extension */
   logicalName: string;
-  /** Object URL for in-browser preview (PNG after HEIC decode, or original file) */
+  /** Object URL for local preview */
   blobUrl: string;
   /** Public Vercel Blob URL after upload; null until synced or after rename */
   remoteUrl: string | null;
@@ -21,13 +21,11 @@ export type PhotoEntry = {
   uploadError: string | null;
   /** Incremented on rename so stale upload completions are ignored */
   uploadGeneration: number;
-  /** False while HEIC/HEIF is decoding to a displayable PNG blob URL */
-  previewReady: boolean;
-  /** Set when HEIC preview decode fails */
-  previewError: string | null;
+  /** HEIC→PNG 导入或迁移失败 */
+  ingestError: string | null;
 };
 
-/** Prefer HTTPS for non-HEIC synced photos; HEIC remotes do not render in Chromium-based export. */
+/** Prefer synced HTTPS URL when the stored file is not HEIC (legacy drafts may still carry HEIC bytes briefly). */
 export function pickPreviewImageUrl(e: PhotoEntry): string {
   if (e.remoteUrl && !isHeicLikeFile(e.file)) {
     return e.remoteUrl;
@@ -64,9 +62,7 @@ export async function buildPhotoUrlMapForPersist(
   for (const e of entries) {
     const key = logicalKeyFromFilename(e.logicalName.trim());
     if (!key) continue;
-    if (isHeicLikeFile(e.file)) {
-      map.set(key, await blobUrlToDataUrl(e.blobUrl));
-    } else if (e.remoteUrl) {
+    if (e.remoteUrl) {
       map.set(key, e.remoteUrl);
     } else {
       map.set(key, await fileToDataUrl(e.file));
@@ -92,18 +88,14 @@ export async function buildPhotoDataUrlMap(
   for (const e of entries) {
     const key = logicalKeyFromFilename(e.logicalName.trim());
     if (!key) continue;
-    if (isHeicLikeFile(e.file)) {
-      map.set(key, await blobUrlToDataUrl(e.blobUrl));
-    } else {
-      map.set(key, await fileToDataUrl(e.file));
-    }
+    map.set(key, await fileToDataUrl(e.file));
   }
   return map;
 }
 
 /**
- * For POST /api/long-screenshot: Chromium cannot load blob: or render HEIC from https:.
- * Inline HEIC-derived PNG as data URLs; keep https for ordinary synced images.
+ * For POST /api/long-screenshot: use public https for synced photos (PNG after HEIC normalization).
+ * Unsynced locals still need data URLs so Playwright can render without blob:.
  */
 export async function buildPhotoInjectionMapForLongScreenshot(
   entries: PhotoEntry[],
@@ -112,9 +104,7 @@ export async function buildPhotoInjectionMapForLongScreenshot(
   for (const e of entries) {
     const key = logicalKeyFromFilename(e.logicalName.trim());
     if (!key) continue;
-    if (isHeicLikeFile(e.file)) {
-      map.set(key, await blobUrlToDataUrl(e.blobUrl));
-    } else if (e.remoteUrl) {
+    if (e.remoteUrl) {
       map.set(key, e.remoteUrl);
     } else {
       map.set(key, await fileToDataUrl(e.file));

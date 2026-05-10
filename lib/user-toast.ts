@@ -48,3 +48,11 @@ export function toastPhotoRemoved(fileLabel: string) {
     description: fileLabel.trim() || "已从照片列表移除。",
   });
 }
+
+/** HEIC 转 PNG 失败（导入或草稿恢复迁移） */
+export function toastHeicImportFailed(fileLabel: string, error: unknown) {
+  toast.error("HEIC 转 PNG 失败", {
+    ...base,
+    description: `${fileLabel.trim() || "照片"}：${errMessage(error, "请换用 PNG/JPEG 或稍后重试。")}`,
+  });
+}

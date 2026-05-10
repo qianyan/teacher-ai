@@ -1,5 +1,4 @@
 import type { PhotoEntry } from "@/lib/photos/inject-blobs";
-import { isHeicLikeFile } from "@/lib/photos/heic-preview";
 import type { HydratedEditorState, PersistedPhoto, ReportSnapshot } from "./types";
 
 export function photoEntryFromPersisted(p: PersistedPhoto): PhotoEntry {
@@ -22,7 +21,6 @@ export function photoEntryFromPersisted(p: PersistedPhoto): PhotoEntry {
   } else if (uploadStatus === "uploading") {
     uploadStatus = "pending";
   }
-  const heic = isHeicLikeFile(file);
   return {
     id: p.id,
     file,
@@ -33,8 +31,7 @@ export function photoEntryFromPersisted(p: PersistedPhoto): PhotoEntry {
     uploadStatus,
     uploadError: hadRemote ? null : p.uploadError,
     uploadGeneration: p.uploadGeneration,
-    previewReady: !heic,
-    previewError: null,
+    ingestError: null,
   };
 }
 

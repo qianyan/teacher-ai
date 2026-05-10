@@ -1,5 +1,5 @@
 /**
- * HEIC/HEIF: browsers generally cannot render these in <img>; decode to PNG for preview & export.
+ * HEIC/HEIF: decode to PNG `File` at import/upload time so Blob `remoteUrl` and screenshot HTML stay URL-based (small POST body).
  */
 
 export function isHeicLikeFile(file: File): boolean {
@@ -25,6 +25,15 @@ export async function decodeHeicLikeToPngBlob(file: File): Promise<Blob> {
 /**
  * Uses local `file` when non-empty; otherwise fetches `remoteUrl` (e.g. restored draft without IDB blob).
  */
+/** Non-HEIC files pass through unchanged. */
+export async function normalizePhotoFileForUpload(file: File): Promise<File> {
+  if (!isHeicLikeFile(file)) return file;
+  const pngBlob = await decodeHeicLikeToPngBlob(file);
+  const stripped = file.name.replace(/^.*[/\\]/, "").replace(/\.[^.]+$/i, "");
+  const name = `${stripped || "photo"}.png`;
+  return new File([pngBlob], name, { type: "image/png" });
+}
+
 export async function decodeHeicLikeToPngBlobFromEntry(p: {
   file: File;
   logicalName: string;
@@ -42,20 +51,9 @@ export async function decodeHeicLikeToPngBlobFromEntry(p: {
   throw new Error("无法解码 HEIC：缺少可用的图片数据");
 }
 
-export async function blobUrlToDataUrl(blobUrl: string): Promise<string> {
-  const res = await fetch(blobUrl);
-  const blob = await res.blob();
-  return new Promise((resolve, reject) => {
-    const fr = new FileReader();
-    fr.onload = () => resolve(fr.result as string);
-    fr.onerror = () => reject(fr.error ?? new Error("读取预览图失败"));
-    fr.readAsDataURL(blob);
-  });
-}
-
 export function allPhotosPreviewReady(
-  photos: { previewReady: boolean; previewError: string | null }[],
+  photos: { file: File; ingestError: string | null }[],
 ): boolean {
   if (photos.length === 0) return true;
-  return photos.every((p) => p.previewReady && !p.previewError);
+  return photos.every((p) => !isHeicLikeFile(p.file) && !p.ingestError);
 }

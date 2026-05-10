@@ -8,11 +8,12 @@ import {
 import {
   decodeHeicLikeToPngBlobFromEntry,
   isHeicLikeFile,
+  normalizePhotoFileForUpload,
 } from "@/lib/photos/heic-preview";
 import { uploadPhotoEntryToBlob } from "@/lib/photos/upload-report-blobs";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PhotoPreviewModal } from "@/components/PhotoPreviewModal";
-import { toastPhotoRemoved } from "@/lib/user-toast";
+import { toastHeicImportFailed, toastPhotoRemoved } from "@/lib/user-toast";
 import type { CSSProperties, Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -41,7 +42,8 @@ async function deleteRemoteBlob(url: string | null): Promise<void> {
 export function PhotoList({ photos, onChange }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const uploadInFlight = useRef(new Set<string>());
-  const heicDecodeInFlight = useRef(new Set<string>());
+  const heicMigrateInFlight = useRef(new Set<string>());
+  const [importBusy, setImportBusy] = useState(false);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [fullscreenEntry, setFullscreenEntry] = useState<PhotoEntry | null>(null);
@@ -61,15 +63,21 @@ export function PhotoList({ photos, onChange }: Props) {
   const selected = selectedIndex >= 0 ? photos[selectedIndex] : null;
 
   const addFiles = useCallback(
-    (fileList: FileList | null) => {
+    async (fileList: FileList | null) => {
       if (!fileList?.length) return;
       const next: PhotoEntry[] = [...photos];
       let firstNewId: string | null = null;
       for (let i = 0; i < fileList.length; i++) {
-        const file = fileList[i];
+        const raw = fileList[i];
+        let file: File;
+        try {
+          file = await normalizePhotoFileForUpload(raw);
+        } catch (err) {
+          toastHeicImportFailed(raw.name, err);
+          continue;
+        }
         const id = newId();
         if (!firstNewId) firstNewId = id;
-        const heic = isHeicLikeFile(file);
         next.push({
           id,
           file,
@@ -80,12 +88,13 @@ export function PhotoList({ photos, onChange }: Props) {
           uploadStatus: "pending",
           uploadError: null,
           uploadGeneration: 0,
-          previewReady: !heic,
-          previewError: null,
+          ingestError: null,
         });
       }
-      onChange(next);
-      if (firstNewId) setSelectedId(firstNewId);
+      if (firstNewId) {
+        onChange(next);
+        setSelectedId(firstNewId);
+      }
     },
     [photos, onChange],
   );
@@ -150,12 +159,12 @@ export function PhotoList({ photos, onChange }: Props) {
   useEffect(() => {
     for (const p of photos) {
       if (!isHeicLikeFile(p.file)) continue;
-      if (p.previewReady) continue;
-      if (heicDecodeInFlight.current.has(p.id)) continue;
-      heicDecodeInFlight.current.add(p.id);
+      if (p.ingestError) continue;
+      if (heicMigrateInFlight.current.has(p.id)) continue;
+      heicMigrateInFlight.current.add(p.id);
       const id = p.id;
-      const oldUrl = p.blobUrl;
-      const revokeOld = oldUrl.startsWith("blob:");
+      const oldBlobUrl = p.blobUrl;
+      const hadRemote = Boolean(p.remoteUrl?.trim());
       void (async () => {
         try {
           const pngBlob = await decodeHeicLikeToPngBlobFromEntry({
@@ -163,29 +172,48 @@ export function PhotoList({ photos, onChange }: Props) {
             logicalName: p.logicalName,
             remoteUrl: p.remoteUrl,
           });
-          const newUrl = URL.createObjectURL(pngBlob);
+          const base = p.logicalName.replace(/^.*[/\\]/, "").replace(/\.[^.]+$/i, "");
+          const newLogical = `${base || "photo"}.png`;
+          const pngFile = new File([pngBlob], newLogical, { type: "image/png" });
+          if (hadRemote) await deleteRemoteBlob(p.remoteUrl);
+          const newBlobUrl = URL.createObjectURL(pngFile);
           onChange((prev) => {
             if (!prev.some((x) => x.id === id)) {
-              URL.revokeObjectURL(newUrl);
+              URL.revokeObjectURL(newBlobUrl);
               return prev;
             }
-            return prev.map((x) =>
-              x.id === id
-                ? { ...x, blobUrl: newUrl, previewReady: true, previewError: null }
-                : x,
-            );
+            return prev.map((x) => {
+              if (x.id !== id) return x;
+              if (oldBlobUrl.startsWith("blob:")) {
+                try {
+                  URL.revokeObjectURL(oldBlobUrl);
+                } catch {
+                  /* ignore */
+                }
+              }
+              return {
+                ...x,
+                file: pngFile,
+                logicalName: newLogical,
+                blobUrl: newBlobUrl,
+                remoteUrl: null,
+                remotePathname: null,
+                uploadStatus: "pending",
+                uploadError: null,
+                uploadGeneration: x.uploadGeneration + 1,
+                ingestError: null,
+              };
+            });
           });
-          if (revokeOld) URL.revokeObjectURL(oldUrl);
         } catch (err) {
-          const msg = err instanceof Error ? err.message : "HEIC 解码失败";
+          const msg = err instanceof Error ? err.message : "HEIC 转 PNG 失败";
+          toastHeicImportFailed(p.logicalName, err);
           onChange((prev) => {
             if (!prev.some((x) => x.id === id)) return prev;
-            return prev.map((x) =>
-              x.id === id ? { ...x, previewReady: true, previewError: msg } : x,
-            );
+            return prev.map((x) => (x.id === id ? { ...x, ingestError: msg } : x));
           });
         } finally {
-          heicDecodeInFlight.current.delete(id);
+          heicMigrateInFlight.current.delete(id);
         }
       })();
     }
@@ -226,8 +254,9 @@ export function PhotoList({ photos, onChange }: Props) {
           type="button"
           onClick={() => inputRef.current?.click()}
           className="btn btn--secondary"
+          disabled={importBusy}
         >
-          导入多张照片
+          {importBusy ? "处理中…" : "导入多张照片"}
         </button>
         <input
           ref={inputRef}
@@ -236,12 +265,21 @@ export function PhotoList({ photos, onChange }: Props) {
           multiple
           hidden
           onChange={(e) => {
-            addFiles(e.target.files);
+            const list = e.target.files;
             e.target.value = "";
+            void (async () => {
+              setImportBusy(true);
+              try {
+                await addFiles(list);
+              } finally {
+                setImportBusy(false);
+              }
+            })();
           }}
         />
         <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
-          支持 HEIC/HEIF（自动转为预览用 PNG）；文件名需「前缀+数字」如 探究1.jpg；缩略图栏拖拽排序，下方编辑当前选中项
+          HEIC/HEIF 会在导入时转为 PNG 再上传，便于长图 API 使用外链、控制 POST 体积；文件名需「前缀+数字」如
+          探究1.jpg；缩略图栏拖拽排序，下方编辑当前选中项
         </span>
       </div>
 
@@ -254,10 +292,10 @@ export function PhotoList({ photos, onChange }: Props) {
           <div className="photo-preview-stage">
             {selected ? (
               <>
-                {isHeicLikeFile(selected.file) && !selected.previewReady ? (
+                {isHeicLikeFile(selected.file) ? (
                   <HeicPreviewPlaceholder
-                    previewError={selected.previewError}
                     minHeight={160}
+                    errorMessage={selected.ingestError}
                   />
                 ) : (
                   /* eslint-disable-next-line @next/next/no-img-element */
@@ -265,7 +303,7 @@ export function PhotoList({ photos, onChange }: Props) {
                     src={pickPreviewImageUrl(selected)}
                     alt={selected.logicalName}
                     onDoubleClick={() =>
-                      selected.previewReady && setFullscreenEntry(selected)
+                      !selected.ingestError && setFullscreenEntry(selected)
                     }
                     style={{
                       width: "100%",
@@ -274,11 +312,11 @@ export function PhotoList({ photos, onChange }: Props) {
                       objectFit: "contain",
                       borderRadius: "var(--radius-sm)",
                       background: "var(--bg)",
-                      cursor: selected.previewReady ? "zoom-in" : "default",
+                      cursor: !selected.ingestError ? "zoom-in" : "default",
                     }}
                   />
                 )}
-                {selected.previewError ? (
+                {selected.ingestError && !isHeicLikeFile(selected.file) ? (
                   <p
                     style={{
                       margin: "8px 0 0",
@@ -286,7 +324,7 @@ export function PhotoList({ photos, onChange }: Props) {
                       color: "var(--danger)",
                     }}
                   >
-                    {selected.previewError}
+                    {selected.ingestError}
                   </p>
                 ) : null}
                 <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
@@ -294,9 +332,13 @@ export function PhotoList({ photos, onChange }: Props) {
                     type="button"
                     className="btn btn--secondary"
                     style={{ fontSize: 13, padding: "6px 12px" }}
-                    disabled={!selected.previewReady}
+                    disabled={isHeicLikeFile(selected.file) || !!selected.ingestError}
                     title={
-                      !selected.previewReady ? "HEIC 正在解码，请稍候" : undefined
+                      isHeicLikeFile(selected.file)
+                        ? "HEIC 正在转为 PNG，请稍候"
+                        : selected.ingestError
+                          ? "请先处理照片错误"
+                          : undefined
                     }
                     onClick={() => setFullscreenEntry(selected)}
                   >
@@ -348,8 +390,10 @@ export function PhotoList({ photos, onChange }: Props) {
                     outline: "none",
                   }}
                 >
-                  {isHeicLikeFile(p.file) && !p.previewReady ? (
-                    <HeicThumbPlaceholder previewError={p.previewError} />
+                  {isHeicLikeFile(p.file) && !p.ingestError ? (
+                    <HeicThumbPlaceholder />
+                  ) : p.ingestError ? (
+                    <HeicThumbPlaceholder error />
                   ) : (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
@@ -489,13 +533,15 @@ export function PhotoList({ photos, onChange }: Props) {
         }}
       />
 
-      {fullscreenEntry && fullscreenEntry.previewReady && (
-        <PhotoPreviewModal
-          imageUrl={pickPreviewImageUrl(fullscreenEntry)}
-          fileName={fullscreenEntry.logicalName}
-          onClose={() => setFullscreenEntry(null)}
-        />
-      )}
+      {fullscreenEntry &&
+        !isHeicLikeFile(fullscreenEntry.file) &&
+        !fullscreenEntry.ingestError && (
+          <PhotoPreviewModal
+            imageUrl={pickPreviewImageUrl(fullscreenEntry)}
+            fileName={fullscreenEntry.logicalName}
+            onClose={() => setFullscreenEntry(null)}
+          />
+        )}
     </div>
   );
 }
@@ -511,7 +557,7 @@ const filmstripWrap: CSSProperties = {
   WebkitOverflowScrolling: "touch",
 };
 
-function HeicThumbPlaceholder({ previewError }: { previewError: string | null }) {
+function HeicThumbPlaceholder({ error = false }: { error?: boolean }) {
   return (
     <div
       style={{
@@ -521,25 +567,26 @@ function HeicThumbPlaceholder({ previewError }: { previewError: string | null })
         alignItems: "center",
         justifyContent: "center",
         background: "var(--border-subtle)",
-        color: previewError ? "var(--danger)" : "var(--text-muted)",
+        color: error ? "var(--danger)" : "var(--text-muted)",
         fontSize: 14,
         fontWeight: 600,
         pointerEvents: "none",
       }}
       aria-hidden
     >
-      {previewError ? "!" : "⋯"}
+      {error ? "!" : "⋯"}
     </div>
   );
 }
 
 function HeicPreviewPlaceholder({
-  previewError,
   minHeight,
+  errorMessage,
 }: {
-  previewError: string | null;
   minHeight: number;
+  errorMessage: string | null;
 }) {
+  const err = Boolean(errorMessage);
   return (
     <div
       style={{
@@ -552,16 +599,21 @@ function HeicPreviewPlaceholder({
         justifyContent: "center",
         borderRadius: "var(--radius-sm)",
         background: "var(--border-subtle)",
-        color: previewError ? "var(--danger)" : "var(--text-muted)",
+        color: err ? "var(--danger)" : "var(--text-muted)",
         fontSize: 14,
         gap: 6,
+        padding: "0 12px",
+        textAlign: "center",
       }}
     >
-      {previewError ? (
-        <span>无法显示预览</span>
+      {err ? (
+        <>
+          <span>HEIC 转 PNG 失败</span>
+          <span style={{ fontSize: 12, opacity: 0.95 }}>{errorMessage}</span>
+        </>
       ) : (
         <>
-          <span>HEIC 解码中…</span>
+          <span>HEIC 转 PNG 中…</span>
           <span style={{ fontSize: 12, opacity: 0.85 }}>大文件可能需数秒</span>
         </>
       )}
