@@ -6,6 +6,10 @@ const VIEWPORT_WIDTH = 1080;
 const VIEWPORT_HEIGHT = 800;
 const NAV_TIMEOUT_MS = 120_000;
 
+async function waitForFontsReady(page) {
+  await page.evaluate(() => document.fonts.ready);
+}
+
 async function waitForImagesLoaded(page) {
   await page.evaluate(() => {
     const imgs = [...document.images];
@@ -52,6 +56,7 @@ try {
     waitUntil: "load",
     timeout: NAV_TIMEOUT_MS,
   });
+  await waitForFontsReady(page);
   await waitForImagesLoaded(page);
   await page.screenshot({
     path: outPath,

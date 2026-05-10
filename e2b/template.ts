@@ -17,4 +17,7 @@ export const longScreenshotTemplate = Template({
   .setUser("root")
   .runCmd("cd /app && npm install")
   .runCmd("cd /app && npx playwright install --with-deps chromium")
+  .runCmd(
+    'DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends fonts-noto-cjk fonts-noto-color-emoji && rm -rf /var/lib/apt/lists/*',
+  )
   .setStartCmd("echo teacher-ai-long-screenshot", waitForTimeout(3_000));

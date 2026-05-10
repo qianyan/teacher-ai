@@ -38,6 +38,10 @@ async function launchBrowser(): Promise<Browser> {
   });
 }
 
+async function waitForFontsReady(page: Page): Promise<void> {
+  await page.evaluate(() => document.fonts.ready);
+}
+
 async function waitForImagesLoaded(page: Page): Promise<void> {
   await page.evaluate(() => {
     const imgs = [...document.images];
@@ -71,6 +75,7 @@ export async function screenshotHtmlToPngBuffer(html: string): Promise<Buffer> {
       waitUntil: "load",
       timeout: NAV_TIMEOUT_MS,
     });
+    await waitForFontsReady(page);
     await waitForImagesLoaded(page);
     const buf = await page.screenshot({
       fullPage: true,
