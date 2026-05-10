@@ -63,12 +63,11 @@ export function PhotoList({ photos, onChange }: Props) {
   const selected = selectedIndex >= 0 ? photos[selectedIndex] : null;
 
   const addFiles = useCallback(
-    async (fileList: FileList | null) => {
-      if (!fileList?.length) return;
+    async (files: readonly File[]) => {
+      if (!files.length) return;
       const next: PhotoEntry[] = [...photos];
       let firstNewId: string | null = null;
-      for (let i = 0; i < fileList.length; i++) {
-        const raw = fileList[i];
+      for (const raw of files) {
         let file: File;
         try {
           file = await normalizePhotoFileForUpload(raw);
@@ -265,12 +264,13 @@ export function PhotoList({ photos, onChange }: Props) {
           multiple
           hidden
           onChange={(e) => {
-            const list = e.target.files;
+            // FileList is live: clearing input value empties it; snapshot before reset.
+            const files = e.target.files ? Array.from(e.target.files) : [];
             e.target.value = "";
             void (async () => {
               setImportBusy(true);
               try {
-                await addFiles(list);
+                await addFiles(files);
               } finally {
                 setImportBusy(false);
               }
