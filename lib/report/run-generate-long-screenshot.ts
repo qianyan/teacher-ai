@@ -14,7 +14,7 @@ function isE2bLongScreenshotConfigured(): boolean {
 
 /**
  * Full-page PNG via Playwright (Node), aligned with `scripts/generate-long-screenshot.py`.
- * When `E2B_API_KEY` and `E2B_LONG_SCREENSHOT_TEMPLATE` are set: runs Playwright in an E2B sandbox.
+ * When `E2B_API_KEY` and `E2B_LONG_SCREENSHOT_TEMPLATE` are set: runs Playwright in an E2B sandbox via E2B HTTP APIs.
  * Otherwise: local `npx playwright install chromium`, or on Vercel `@sparticuz/chromium` + `playwright-core`.
  */
 export async function runGenerateLongScreenshot(html: string): Promise<Buffer> {

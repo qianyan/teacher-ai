@@ -1,5 +1,10 @@
 import fs from "node:fs";
-import { chromium } from "playwright";
+
+// Must be set before playwright loads (static import is hoisted and ignores this).
+process.env.PLAYWRIGHT_BROWSERS_PATH =
+  process.env.PLAYWRIGHT_BROWSERS_PATH ?? "/app/ms-playwright";
+
+const { chromium } = await import("playwright");
 
 /** Matches lib/report/screenshot-html-playwright.ts and scripts/generate-long-screenshot.py */
 const VIEWPORT_WIDTH = 1080;
