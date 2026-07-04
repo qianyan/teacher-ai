@@ -1,5 +1,3 @@
-import { CommandExitError, Sandbox } from "e2b";
-
 const LOG = "[long-screenshot]";
 
 /** Slightly under app/api/long-screenshot maxDuration (120s). */
@@ -11,6 +9,8 @@ const COMMAND_TIMEOUT_MS = 110_000;
  * Requires E2B_API_KEY and E2B_LONG_SCREENSHOT_TEMPLATE (template name from Template.build).
  */
 export async function screenshotHtmlToPngBufferE2b(html: string): Promise<Buffer> {
+  const { CommandExitError, Sandbox } = await import("e2b");
+
   const apiKey = process.env.E2B_API_KEY;
   const template = process.env.E2B_LONG_SCREENSHOT_TEMPLATE;
   if (!apiKey?.trim() || !template?.trim()) {

@@ -1,4 +1,3 @@
-import { screenshotHtmlToPngBufferE2b } from "@/lib/report/screenshot-e2b";
 import { screenshotHtmlToPngBuffer } from "@/lib/report/screenshot-html-playwright";
 
 const LOG = "[long-screenshot]";
@@ -41,6 +40,9 @@ export async function runGenerateLongScreenshot(html: string): Promise<Buffer> {
         template,
         hint: "Playwright runs inside E2B; this Node process only orchestrates.",
       });
+      const { screenshotHtmlToPngBufferE2b } = await import(
+        "@/lib/report/screenshot-e2b"
+      );
       const buf = await screenshotHtmlToPngBufferE2b(html);
       console.info(`${LOG} pipeline: E2B finished`, {
         ms: Date.now() - t0,

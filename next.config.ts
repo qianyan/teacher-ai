@@ -11,7 +11,6 @@ const nextConfig: NextConfig = {
     "playwright",
     "playwright-core",
     "@sparticuz/chromium",
-    "e2b",
   ],
   experimental: {
     // Large JSON bodies for POST /api/long-screenshot (base64 images in HTML)
