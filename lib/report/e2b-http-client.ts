@@ -59,13 +59,16 @@ function parseExitCode(status: string | undefined, exitCode: number | undefined)
   return match ? Number.parseInt(match[1], 10) : 1;
 }
 
-function connectJsonEnvelope(json: string): Buffer {
+function connectJsonEnvelope(json: string): ArrayBuffer {
   const payload = Buffer.from(json, "utf8");
   const envelope = Buffer.alloc(5 + payload.length);
   envelope[0] = 0x00;
   envelope.writeUInt32BE(payload.length, 1);
   payload.copy(envelope, 5);
-  return envelope;
+  return envelope.buffer.slice(
+    envelope.byteOffset,
+    envelope.byteOffset + envelope.byteLength,
+  );
 }
 
 function decodeProcessOutput(value: string | undefined): string {
@@ -231,7 +234,7 @@ export async function e2bUploadFile(
   const blob =
     typeof content === "string"
       ? new Blob([content], { type: "text/html;charset=utf-8" })
-      : new Blob([content], { type: "application/octet-stream" });
+      : new Blob([new Uint8Array(content)], { type: "application/octet-stream" });
   form.append("file", blob, path.split("/").pop() ?? "file");
 
   const url = new URL("/files", E2B_SANDBOX_HOST);
