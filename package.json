@@ -20,7 +20,7 @@
     "@tiptap/pm": "^2.11.5",
     "@tiptap/react": "^2.11.5",
     "@tiptap/starter-kit": "^2.11.5",
-    "e2b": "^2.19.5",
+    "e2b": "^2.31.0",
     "heic2any": "^0.0.4",
     "html-to-image": "^1.11.13",
     "next": "^15.1.0",
