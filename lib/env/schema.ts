@@ -36,6 +36,49 @@ function has(env: EnvRecord, name: string): boolean {
   return read(env, name).length > 0;
 }
 
+function isDefined(env: EnvRecord, name: string): boolean {
+  return Object.prototype.hasOwnProperty.call(env, name);
+}
+
+function validateE2bPair(env: EnvRecord, errors: EnvValidationIssue[]): void {
+  const apiDefined = isDefined(env, "E2B_API_KEY");
+  const templateDefined = isDefined(env, "E2B_LONG_SCREENSHOT_TEMPLATE");
+
+  if (apiDefined !== templateDefined) {
+    const missing = apiDefined ? "E2B_LONG_SCREENSHOT_TEMPLATE" : "E2B_API_KEY";
+    errors.push(
+      issue(
+        missing,
+        `${missing} is missing from the environment. Configure both E2B variables in Vercel, or remove both.`,
+      ),
+    );
+    return;
+  }
+
+  if (!apiDefined) {
+    return;
+  }
+
+  const apiHasValue = has(env, "E2B_API_KEY");
+  const templateHasValue = has(env, "E2B_LONG_SCREENSHOT_TEMPLATE");
+
+  if (apiHasValue === templateHasValue) {
+    return;
+  }
+
+  // Vercel "Sensitive" variables are redacted to empty strings by `vercel pull`.
+  if ((apiHasValue && templateDefined) || (templateHasValue && apiDefined)) {
+    return;
+  }
+
+  errors.push(
+    issue(
+      "E2B_API_KEY",
+      "E2B_API_KEY and E2B_LONG_SCREENSHOT_TEMPLATE must be set together.",
+    ),
+  );
+}
+
 function issue(name: string, message: string): EnvValidationIssue {
   return { severity: "error", name, message };
 }
@@ -138,16 +181,7 @@ export function validateEnvironment(
     );
   }
 
-  const e2bApiKeySet = has(env, "E2B_API_KEY");
-  const e2bTemplateSet = has(env, "E2B_LONG_SCREENSHOT_TEMPLATE");
-  if (e2bApiKeySet !== e2bTemplateSet) {
-    errors.push(
-      issue(
-        e2bApiKeySet ? "E2B_LONG_SCREENSHOT_TEMPLATE" : "E2B_API_KEY",
-        "E2B_API_KEY and E2B_LONG_SCREENSHOT_TEMPLATE must be set together.",
-      ),
-    );
-  }
+  validateE2bPair(env, errors);
 
   if (target === "production") {
     const rpID = read(env, "WEBAUTHN_RP_ID");

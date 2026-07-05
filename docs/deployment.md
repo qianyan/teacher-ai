@@ -117,6 +117,18 @@ validate (test:env, lint, build)
 | Pull request to `main` | Preview deploy + smoke tests + PR comment |
 | Push to `main` | Preview deploy + smoke tests + production deploy + production smoke test |
 
+### Where secrets live (never commit them)
+
+| Location | What to store |
+| --- | --- |
+| **Vercel → Project → Settings → Environment Variables** | App secrets: `LLM_API_KEY`, Supabase keys, `E2B_API_KEY`, WebAuthn, etc. Scope each variable to Preview and/or Production. |
+| **GitHub → Settings → Secrets and variables → Actions** | CI-only: `VERCEL_TOKEN`, optional `VERCEL_AUTOMATION_BYPASS_SECRET`. |
+| **Local only** | `.env.local`, `.vercel/.env.*.local` — already gitignored. |
+
+CI runs `vercel pull` at deploy time to download Vercel env vars into `.vercel/.env.preview.local`. That file is temporary and must not be committed.
+
+**Note:** Variables marked **Sensitive** in Vercel (default for Preview/Production) are redacted by `vercel pull` as empty strings, e.g. `E2B_API_KEY=""`. The validator treats "key present but empty" as configured. Runtime on Vercel still receives the real value.
+
 ### Required GitHub secrets
 
 | Secret | Purpose |
@@ -144,4 +156,22 @@ After a preview deploy:
 
 ```bash
 PREVIEW_URL=https://your-preview.vercel.app npm run smoke:preview
+```
+
+### Troubleshooting preview validation
+
+If CI prints `Environment validation failed for preview`, fix variables in the **Vercel dashboard**, not in git.
+
+Common cases:
+
+| Error | Fix in Vercel Preview env |
+| --- | --- |
+| Missing Supabase keys | Add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
+| Missing LLM key | Add `LLM_API_KEY` (or provider-specific key) |
+| E2B pair mismatch | Set **both** `E2B_API_KEY` and `E2B_LONG_SCREENSHOT_TEMPLATE`, or **delete both** if preview does not need long screenshots |
+
+Reproduce locally:
+
+```bash
+npm run prepare:preview
 ```

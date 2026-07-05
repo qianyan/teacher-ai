@@ -55,6 +55,22 @@ function messages(result: ReturnType<typeof validateEnvironment>): string[] {
       NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon",
       SUPABASE_SERVICE_ROLE_KEY: "service",
+      E2B_API_KEY: "",
+      E2B_LONG_SCREENSHOT_TEMPLATE: "teacher-ai-long-screenshot",
+    },
+    "preview",
+  );
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.errors, []);
+}
+
+{
+  const result = validateEnvironment(
+    {
+      ...baseEnv(),
+      NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon",
+      SUPABASE_SERVICE_ROLE_KEY: "service",
       WEBAUTHN_RP_ID: "localhost",
       WEBAUTHN_ORIGIN: "http://localhost:3000",
     },
