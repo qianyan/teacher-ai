@@ -98,3 +98,50 @@ npm run env:validate:production
 For Vercel environments, prefer the prepare scripts because they first pull remote environment variables into ignored `.vercel/.env.*.local` files.
 
 The validator does not print secret values. It reports only variable names and the rule that failed.
+
+## GitHub Actions
+
+Workflow file: `.github/workflows/deploy.yml`
+
+Pipeline:
+
+```text
+validate (test:env, lint, build)
+  -> deploy-preview (vercel pull + env validate + vercel build + deploy)
+  -> verify-preview (smoke tests)
+  -> deploy-production (main push only)
+```
+
+| Event | Result |
+| --- | --- |
+| Pull request to `main` | Preview deploy + smoke tests + PR comment |
+| Push to `main` | Preview deploy + smoke tests + production deploy + production smoke test |
+
+### Required GitHub secrets
+
+| Secret | Purpose |
+| --- | --- |
+| `VERCEL_TOKEN` | Vercel CLI auth for pull/build/deploy |
+| `VERCEL_AUTOMATION_BYPASS_SECRET` | Optional. Required when Vercel Deployment Protection blocks preview/production smoke tests |
+
+Repository variables are set in the workflow:
+
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+
+### GitHub environments (recommended)
+
+Create two environments in GitHub repository settings:
+
+- `preview`: no approval required
+- `production`: add required reviewers for manual approval before production deploy
+
+If Vercel Git integration also auto-deploys on push, disable it or accept duplicate preview deployments. This workflow is the source of truth for validated deploys.
+
+### Local smoke test
+
+After a preview deploy:
+
+```bash
+PREVIEW_URL=https://your-preview.vercel.app npm run smoke:preview
+```

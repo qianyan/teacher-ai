@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test:env": "tsx scripts/validate-env.test.ts",
+    "smoke:preview": "tsx scripts/smoke-preview.ts",
     "env:validate": "tsx scripts/validate-env.ts",
     "env:validate:local": "tsx scripts/validate-env.ts --target local --env-file .env.local",
     "env:validate:preview": "tsx scripts/validate-env.ts --target preview",
