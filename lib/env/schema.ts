@@ -100,20 +100,6 @@ function validateUrl(value: string): boolean {
   }
 }
 
-function validateHttpsOriginList(value: string): boolean {
-  return value
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean)
-    .every((origin) => {
-      try {
-        return new URL(origin).protocol === "https:";
-      } catch {
-        return false;
-      }
-    });
-}
-
 export function validateEnvironment(
   env: EnvRecord,
   target: DeploymentTarget,
@@ -182,43 +168,6 @@ export function validateEnvironment(
   }
 
   validateE2bPair(env, errors);
-
-  if (target === "production") {
-    const rpID = read(env, "WEBAUTHN_RP_ID");
-    const origin = read(env, "WEBAUTHN_ORIGIN");
-
-    if (!rpID || rpID === "localhost") {
-      errors.push(
-        issue(
-          "WEBAUTHN_RP_ID",
-          "WEBAUTHN_RP_ID is required for production and must not be localhost.",
-        ),
-      );
-    }
-
-    if (!origin) {
-      errors.push(
-        issue("WEBAUTHN_ORIGIN", "WEBAUTHN_ORIGIN is required for production."),
-      );
-    } else if (!validateHttpsOriginList(origin)) {
-      errors.push(
-        issue(
-          "WEBAUTHN_ORIGIN",
-          "WEBAUTHN_ORIGIN must contain only valid https origins in production.",
-        ),
-      );
-    }
-  } else {
-    const origin = read(env, "WEBAUTHN_ORIGIN");
-    if (origin && !validateUrl(origin.split(",")[0]?.trim() ?? "")) {
-      warnings.push(
-        warning(
-          "WEBAUTHN_ORIGIN",
-          "WEBAUTHN_ORIGIN should be a comma-separated list of valid origins.",
-        ),
-      );
-    }
-  }
 
   return {
     ok: errors.length === 0,

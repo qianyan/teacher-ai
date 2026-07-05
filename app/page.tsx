@@ -3,7 +3,6 @@
 import { useMe } from "@/lib/auth/use-me";
 import { AppHeader } from "@/components/AppHeader";
 import { ReportWorkbench } from "@/components/ReportWorkbench";
-import { SessionUnlock } from "@/components/SessionUnlock";
 import {
   DEFAULT_BODY_HTML,
   DEFAULT_BIWEEKLY_DATE_RANGE,
@@ -212,22 +211,19 @@ export default function HomePage() {
 
   if (isHydrating) {
     return (
-      <SessionUnlock>
-        <main className="app-shell">
-          <div className="app-hydrate-loader" role="status" aria-live="polite">
-            <span className="app-hydrate-loader__face" aria-hidden>
-              📒
-            </span>
-            <p className="app-hydrate-loader__text">正在唤醒你的简报草稿…</p>
-          </div>
-        </main>
-      </SessionUnlock>
+      <main className="app-shell">
+        <div className="app-hydrate-loader" role="status" aria-live="polite">
+          <span className="app-hydrate-loader__face" aria-hidden>
+            📒
+          </span>
+          <p className="app-hydrate-loader__text">正在唤醒你的简报草稿…</p>
+        </div>
+      </main>
     );
   }
 
   return (
-    <SessionUnlock>
-      <main className={shellClass}>
+    <main className={shellClass}>
         <AppHeader
           draftSavedAt={draftSavedAt}
           draftError={draftError}
@@ -267,7 +263,6 @@ export default function HomePage() {
           advanceToPreview={advanceToPreview}
           onAdvanceToPreviewConsumed={handleAdvanceToPreviewConsumed}
         />
-      </main>
-    </SessionUnlock>
+    </main>
   );
 }

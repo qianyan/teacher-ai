@@ -67,32 +67,11 @@ function messages(result: ReturnType<typeof validateEnvironment>): string[] {
 {
   const result = validateEnvironment(
     {
-      ...baseEnv(),
-      NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon",
-      SUPABASE_SERVICE_ROLE_KEY: "service",
-      WEBAUTHN_RP_ID: "localhost",
-      WEBAUTHN_ORIGIN: "http://localhost:3000",
-    },
-    "production",
-  );
-  assert.equal(result.ok, false);
-  assert(
-    messages(result).some((message) => message.includes("WEBAUTHN_RP_ID")),
-  );
-  assert(messages(result).some((message) => message.includes("https")));
-}
-
-{
-  const result = validateEnvironment(
-    {
       LLM_PROVIDER: "anthropic",
       LLM_MODEL: "claude-sonnet-4-20250514",
       NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon",
       SUPABASE_SERVICE_ROLE_KEY: "service",
-      WEBAUTHN_RP_ID: "teacher.example.com",
-      WEBAUTHN_ORIGIN: "https://teacher.example.com",
     },
     "production",
   );

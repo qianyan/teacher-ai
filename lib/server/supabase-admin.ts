@@ -20,7 +20,7 @@ export function getSupabaseAdminClient(): SupabaseClient {
   const serviceRoleKey = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
 
   cachedClient = createClient(url, serviceRoleKey, {
-    auth: { persistSession: false },
+    auth: { persistSession: false, experimental: { passkey: true } },
   });
   return cachedClient;
 }

@@ -4,6 +4,7 @@ import { DraftStatusChip } from "@/components/DraftStatusChip";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { memo, useCallback, useMemo } from "react";
 
@@ -82,6 +83,9 @@ function AppHeaderInner({
         <button type="button" className="btn btn--secondary btn--sm" onClick={signOut} title="退出登录">
           退出
         </button>
+        <Link href="/account" className="btn btn--secondary btn--sm" title="账户与通行密钥">
+          账户
+        </Link>
         <ThemeToggle />
       </div>
     </header>

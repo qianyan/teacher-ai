@@ -29,8 +29,6 @@ const PRESERVE_KEYS = new Set([
   "ANTHROPIC_API_KEY",
   "ANTHROPIC_MODEL",
   "REPORT_GENERATE_MAX_TOKENS",
-  "APP_LOCK_PIN",
-  "NEXT_PUBLIC_APP_LOCK_PIN",
 ]);
 
 function dockerEnv(): NodeJS.ProcessEnv {
@@ -191,16 +189,28 @@ function writeLocalEnv(
 
   lines.push(
     "",
-    "# --- WebAuthn (local dev) ---",
-    "WEBAUTHN_RP_ID=localhost",
-    'WEBAUTHN_RP_NAME="Teacher AI"',
-    "WEBAUTHN_ORIGIN=http://localhost:3000",
-    "",
+    "# Passkeys: configured in supabase/config.toml ([auth.passkey] / [auth.webauthn]).",
     "# Long screenshots use in-process Playwright locally (E2B not configured).",
     "",
   );
 
   writeFileSync(ENV_LOCAL, `${lines.join("\n")}\n`, "utf8");
+}
+
+function verifyLocalPasskeysEnabled(): void {
+  const body = tryCapture(
+    'curl -s http://127.0.0.1:54321/auth/v1/passkeys',
+  );
+  if (!body) {
+    console.warn("\nWarning: could not verify local passkey endpoint.");
+    return;
+  }
+  if (body.includes("passkey_disabled")) {
+    throw new Error(
+      "Local Supabase passkeys are disabled. Check supabase/config.toml ([auth.passkey] enabled = true), then run: npx supabase stop && npx supabase start",
+    );
+  }
+  console.log("Local passkey auth endpoint is enabled.");
 }
 
 function warnIfMissingLlmKey(preserved: Record<string, string>): void {
@@ -230,8 +240,10 @@ function main(): void {
   const preserved = loadPreservedSecrets();
   warnIfMissingLlmKey(preserved);
 
-  console.log("Starting local Supabase (Docker)...");
+  console.log("Restarting local Supabase (Docker) to apply config.toml…");
+  run("npx supabase stop");
   run("npx supabase start --exclude vector,analytics");
+  verifyLocalPasskeysEnabled();
 
   console.log("\nApplying migrations (local reset — drops local data only)...");
   run(buildLocalResetCommand());

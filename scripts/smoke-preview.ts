@@ -6,7 +6,7 @@ type SmokeCheck = {
 
 const CHECKS: SmokeCheck[] = [
   { path: "/" },
-  { path: "/api/session/webauthn/status", expectJson: true },
+  { path: "/login" },
 ];
 
 function baseUrl(): string {

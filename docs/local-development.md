@@ -2,6 +2,8 @@
 
 Local development uses a **separate Supabase stack in Docker**, not the preview/production project. This keeps history, passkeys, and report photos isolated from deployed environments.
 
+Passkey login is enabled locally via `supabase/config.toml` (`[auth.passkey]` / `[auth.webauthn]`). No app-level WebAuthn env vars are required.
+
 ## Prerequisites
 
 - **Colima** (recommended on macOS): `brew install colima docker`
@@ -45,7 +47,7 @@ On Colima, the provision script excludes `vector` and `analytics` containers (th
    This will:
 
    - Start local Supabase via Docker (`http://127.0.0.1:54321`)
-   - Apply migrations (history, WebAuthn tables, `report-photos` bucket)
+   - Apply migrations (history, `report-photos` bucket)
    - Generate `.env.local` pointing at the local stack
    - Back up a remote `.env.local` to `.env.local.remote.bak` if detected
 
@@ -55,7 +57,7 @@ On Colima, the provision script excludes `vector` and `analytics` containers (th
    npm run dev
    ```
 
-   Open [http://localhost:3000](http://localhost:3000). Keep `WEBAUTHN_ORIGIN=http://localhost:3000` in `.env.local` (set automatically by provision).
+   Open [http://localhost:3000](http://localhost:3000). Passkey rp origins are configured in `supabase/config.toml`.
 
 ## Daily commands
 
@@ -105,7 +107,18 @@ Or start Docker Desktop, wait until healthy, then retry.
 
 **Port 3000 in use**
 
-Stop the other process or run `npm run dev -- -p 3001` and set `WEBAUTHN_ORIGIN=http://localhost:3001`.
+Stop the other process or run `npm run dev -- -p 3001` and add `http://localhost:3001` to `rp_origins` in `supabase/config.toml`, then restart Supabase.
+
+**Passkeys are disabled / `/auth/v1/passkeys` returns 404**
+
+After changing `supabase/config.toml`, the running Auth container does not pick up changes until restart:
+
+```bash
+npx supabase stop
+npx supabase start --exclude vector,analytics
+```
+
+Verify: `curl -s http://127.0.0.1:54321/auth/v1/passkeys` should return `no_authorization` (401), not `passkey_disabled`.
 
 **Missing LLM key after provision**
 

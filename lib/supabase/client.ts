@@ -9,6 +9,8 @@ export function createSupabaseBrowserClient() {
   if (!url || !anonKey) {
     throw new Error("NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are required");
   }
-  cached = createBrowserClient(url, anonKey);
+  cached = createBrowserClient(url, anonKey, {
+    auth: { experimental: { passkey: true } },
+  });
   return cached;
 }

@@ -10,6 +10,7 @@ export async function createSupabaseServerClient() {
   }
 
   return createServerClient(url, anonKey, {
+    auth: { experimental: { passkey: true } },
     cookies: {
       getAll() {
         return cookieStore.getAll();

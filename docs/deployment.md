@@ -71,8 +71,7 @@ The deploy command prints the preview URL. Use that URL for browser smoke tests.
 
 Production uses the Vercel production environment. Confirm these production-only values before deploying:
 
-- `WEBAUTHN_RP_ID` is the production hostname, not `localhost`.
-- `WEBAUTHN_ORIGIN` uses `https://` and matches the production URL.
+- Supabase Auth **Passkey** is enabled in the Supabase Dashboard (Authentication → Sign In / Providers → Passkeys), with `webauthn_rp_id` set to your production hostname (no protocol/port) and `webauthn_rp_origins` using `https://` matching the deployed URL.
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are set in Vercel production.
 - `E2B_API_KEY` and `E2B_LONG_SCREENSHOT_TEMPLATE` are either both set or both absent.
 
@@ -208,7 +207,7 @@ validate (test:env, lint, build)
 
 | Location | What to store |
 | --- | --- |
-| **Vercel → Project → Settings → Environment Variables** | App secrets: `LLM_API_KEY`, Supabase keys, `E2B_API_KEY`, WebAuthn, etc. Scope each variable to Preview and/or Production. |
+| **Vercel → Project → Settings → Environment Variables** | App secrets: `LLM_API_KEY`, Supabase keys, `E2B_API_KEY`, etc. Scope each variable to Preview and/or Production. Enable Passkeys in Supabase Dashboard separately. |
 | **GitHub → Settings → Secrets and variables → Actions** | CI-only: `VERCEL_TOKEN`, optional `VERCEL_AUTOMATION_BYPASS_SECRET`. |
 | **Local only** | `.env.local`, `.vercel/.env.*.local` — already gitignored. |
 
