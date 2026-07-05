@@ -2,8 +2,10 @@
 
 import { DraftStatusChip } from "@/components/DraftStatusChip";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import Image from "next/image";
-import { memo } from "react";
+import { useRouter } from "next/navigation";
+import { memo, useCallback, useMemo } from "react";
 
 type Props = {
   draftSavedAt: number | null;
@@ -24,6 +26,15 @@ function AppHeaderInner({
   historySidebarOpen,
   onToggleHistorySidebar,
 }: Props) {
+  const router = useRouter();
+  const supabase = useMemo(() => createSupabaseBrowserClient(), []);
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    router.replace("/login");
+    router.refresh();
+  }, [router, supabase]);
+
   return (
     <header className="app-header app-header--compact">
       <div className="app-header__brand">
@@ -67,6 +78,9 @@ function AppHeaderInner({
               <span className="history-badge">{historyCount > 99 ? "99+" : historyCount}</span>
             )}
           </span>
+        </button>
+        <button type="button" className="btn btn--secondary btn--sm" onClick={signOut} title="退出登录">
+          退出
         </button>
         <ThemeToggle />
       </div>

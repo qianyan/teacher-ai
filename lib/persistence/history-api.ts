@@ -117,8 +117,10 @@ async function parseJson<T>(res: Response): Promise<T> {
   }
 }
 
+const fetchOpts: RequestInit = { credentials: "include" };
+
 export async function listHistoryRemote(): Promise<HistoryRecord[]> {
-  const res = await fetch("/api/history", { cache: "no-store" });
+  const res = await fetch("/api/history", { cache: "no-store", ...fetchOpts });
   const body = await parseJson<{ error?: string; history?: unknown }>(res);
   if (!res.ok) {
     throw new Error(body.error || `HTTP ${res.status}`);
@@ -137,6 +139,7 @@ export async function addHistoryRemote(snapshot: ReportSnapshot): Promise<Histor
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ snapshot: toRemoteSnapshot(snapshot) }),
+    ...fetchOpts,
   });
   const body = await parseJson<{ error?: string; history?: unknown }>(res);
   if (!res.ok) {
@@ -152,6 +155,7 @@ export async function addHistoryRemote(snapshot: ReportSnapshot): Promise<Histor
 export async function getHistoryEntryRemote(id: string): Promise<HistoryRecord | null> {
   const res = await fetch(`/api/history/${encodeURIComponent(id)}`, {
     cache: "no-store",
+    ...fetchOpts,
   });
   const body = await parseJson<{ error?: string; history?: unknown }>(res);
   if (res.status === 404) return null;
@@ -168,6 +172,7 @@ export async function getHistoryEntryRemote(id: string): Promise<HistoryRecord |
 export async function deleteHistoryRemote(id: string): Promise<void> {
   const res = await fetch(`/api/history/${encodeURIComponent(id)}`, {
     method: "DELETE",
+    ...fetchOpts,
   });
   const body = await parseJson<{ error?: string }>(res);
   if (res.status === 404) return;

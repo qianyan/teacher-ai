@@ -39,6 +39,7 @@
     "@simplewebauthn/browser": "^13.3.0",
     "@simplewebauthn/server": "^13.3.0",
     "@sparticuz/chromium": "^147.0.0",
+    "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.104.1",
     "@tiptap/extension-placeholder": "^2.11.5",
     "@tiptap/pm": "^2.11.5",

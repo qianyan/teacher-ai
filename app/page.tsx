@@ -1,5 +1,6 @@
 "use client";
 
+import { useMe } from "@/lib/auth/use-me";
 import { AppHeader } from "@/components/AppHeader";
 import { ReportWorkbench } from "@/components/ReportWorkbench";
 import { SessionUnlock } from "@/components/SessionUnlock";
@@ -95,6 +96,8 @@ export default function HomePage() {
 
   const photosSynced = useMemo(() => allReportPhotosSynced(photos), [photos]);
 
+  const { usage, refresh: refreshUsage } = useMe();
+
   const generate = useCallback(async () => {
     setError(null);
     if (!allReportPhotosSynced(photos)) {
@@ -108,6 +111,7 @@ export default function HomePage() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           biweeklyDateRange,
           subTitle,
@@ -130,6 +134,7 @@ export default function HomePage() {
       } catch (e) {
         console.error("History save failed:", e);
       }
+      void refreshUsage();
     } catch (e) {
       setError(e instanceof Error ? e.message : "生成失败");
     } finally {
@@ -142,12 +147,24 @@ export default function HomePage() {
     bodyHtml,
     photos,
     recordHistoryAfterGenerate,
+    refreshUsage,
   ]);
 
-  const generateBlockedReason =
-    !photosSynced && photos.length > 0
-      ? "请等待全部照片同步到 Blob"
+  const quotaBlockedReason =
+    usage?.plan === "free" && usage.remaining !== null && usage.remaining <= 0
+      ? "本月免费生成次数已用完"
       : undefined;
+
+  const generateBlockedReason =
+    quotaBlockedReason ??
+    (!photosSynced && photos.length > 0 ? "请等待全部照片同步到 Blob" : undefined);
+
+  const usageHint =
+    usage?.plan === "free" && usage.remaining !== null
+      ? `本月剩余 ${usage.remaining} / ${usage.limit} 次 AI 生成`
+      : usage?.plan === "pro"
+        ? "Pro：无限生成"
+        : undefined;
 
   const shellClass =
     `app-shell${historySidebarOpen ? " app-shell--history-open" : ""}`;
@@ -245,6 +262,7 @@ export default function HomePage() {
           loading={loading}
           error={error}
           generateBlockedReason={generateBlockedReason}
+          usageHint={usageHint}
           onGenerate={generate}
           advanceToPreview={advanceToPreview}
           onAdvanceToPreviewConsumed={handleAdvanceToPreviewConsumed}

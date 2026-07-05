@@ -49,6 +49,7 @@ async function deleteRemoteBlob(url: string | null): Promise<void> {
     await fetch("/api/blob/delete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ url }),
     });
   } catch {

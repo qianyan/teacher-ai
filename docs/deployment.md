@@ -94,6 +94,66 @@ Deploy production:
 npm run deploy:production
 ```
 
+## Invite-code registration
+
+Access requires login. New users register with **email + password + invite code**.
+
+**Each invite code is single-use** (one person,用完即失效). Redemption is bound to `redeemed_by_user_id`.
+
+### Local development
+
+1. `npm run db:migrate:local`
+2. If migrate fails with **Remote migration versions not found**, a removed migration was previously applied locally:
+   ```bash
+   npx supabase migration repair --status reverted 20260705150000 --local --yes
+   npm run db:reset:local
+   ```
+3. Open `/login` → **邀请码注册**
+4. Use bootstrap code `LOCAL-DEV-01` (single use). After it is consumed:
+   ```bash
+   npx tsx scripts/create-invite-code.ts
+   ```
+
+### Create invite codes (production)
+
+```bash
+# One code (auto-generated)
+npx tsx scripts/create-invite-code.ts
+
+# Named code
+npx tsx scripts/create-invite-code.ts SPRING-2026-A "Teacher Zhang"
+
+# Batch of 20
+npx tsx scripts/create-invite-codes-batch.ts 20 "Spring 2026"
+```
+
+Optional SQL expiry:
+
+```sql
+insert into public.invite_codes (code, max_uses, expires_at, note)
+values ('VIP-001', 1, '2027-01-01'::timestamptz, 'One-off');
+```
+
+### Usage quotas & subscriptions
+
+| Plan | `profiles.plan` | AI 生成 |
+| --- | --- | --- |
+| 免费 | `free` | 每月 `FREE_TIER_MONTHLY_GENERATIONS` 次（默认 5） |
+| Pro | `pro` | 不限次数 |
+
+Upgrade Pro manually (until payment webhooks ship):
+
+```sql
+update public.profiles set plan = 'pro' where id = '<user-uuid>';
+```
+
+Usage is tracked in `usage_events`. Payment webhook stub: `/api/webhooks/stripe`.
+
+### Supabase Auth settings
+
+- **Disable public sign-up** in Dashboard if you want registration only via `/api/auth/register` (recommended).
+- Email confirmation can stay off; server creates users with `email_confirm: true`.
+
 ## Validation Details
 
 Environment validation is implemented in `lib/env/schema.ts` and exposed through:

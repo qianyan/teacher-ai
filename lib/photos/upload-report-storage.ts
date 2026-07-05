@@ -50,6 +50,7 @@ export async function uploadPhotoEntryToStorage(
   const signRes = await fetch(SIGN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify(payload),
   });
 

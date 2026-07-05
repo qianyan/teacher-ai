@@ -1,9 +1,15 @@
 import { generateDynamicBodyHtml } from "@/lib/agent/generate-dynamic-body";
+import {
+  checkCanGenerate,
+  QuotaExceededError,
+  recordGenerateUsage,
+} from "@/lib/server/entitlements";
 import { assembleFullDocument } from "@/lib/report/assemble";
 import {
   readReferenceFooter,
   readReferenceShell,
 } from "@/lib/report/read-assets";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 export const maxDuration = 300;
@@ -61,6 +67,14 @@ export async function POST(request: Request) {
       );
     }
 
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    await checkCanGenerate(supabase, user.id);
+
     const dynamicBodyHtml = await generateDynamicBodyHtml({
       biweeklyDateRange,
       subTitle,
@@ -78,8 +92,16 @@ export async function POST(request: Request) {
       dynamicBodyHtml,
     });
 
+    await recordGenerateUsage(supabase, user.id);
+
     return NextResponse.json({ dynamicBodyHtml, fullHtml });
   } catch (err) {
+    if (err instanceof QuotaExceededError) {
+      return NextResponse.json(
+        { error: err.message, code: "quota_exceeded", limit: err.limit },
+        { status: 429 },
+      );
+    }
     const message = err instanceof Error ? err.message : "Generate failed";
     const missingKey =
       /API_KEY|LLM_API_KEY|OPENAI_API_KEY/i.test(message) ||

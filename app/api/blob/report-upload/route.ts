@@ -1,9 +1,11 @@
-import { NextResponse } from "next/server";
 import {
   normalizeReportPhotoContentType,
 } from "@/lib/photos/report-photo-mime";
+import { userScopedStoragePath } from "@/lib/server/history-store";
 import { getSupabaseAdminClient } from "@/lib/server/supabase-admin";
 import { getReportPhotosBucket } from "@/lib/server/report-photos-bucket";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
 
 const MAX_BYTES = 50 * 1024 * 1024;
 
@@ -79,10 +81,17 @@ export async function POST(request: Request): Promise<NextResponse> {
   const bucket = getReportPhotosBucket();
 
   try {
+    const supabaseAuth = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabaseAuth.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const scopedPath = userScopedStoragePath(user.id, pathname);
     const supabase = getSupabaseAdminClient();
     const { data, error } = await supabase.storage
       .from(bucket)
-      .createSignedUploadUrl(pathname, { upsert: true });
+      .createSignedUploadUrl(scopedPath, { upsert: true });
 
     if (error || !data) {
       const message = error?.message ?? "Could not create signed upload URL";

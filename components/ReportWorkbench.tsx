@@ -74,6 +74,7 @@ type Props = {
   loading: boolean;
   error: string | null;
   generateBlockedReason?: string;
+  usageHint?: string;
   onGenerate: () => void;
   advanceToPreview?: boolean;
   onAdvanceToPreviewConsumed?: () => void;
@@ -94,6 +95,7 @@ function ReportWorkbenchInner({
   loading,
   error,
   generateBlockedReason,
+  usageHint,
   onGenerate,
   advanceToPreview,
   onAdvanceToPreviewConsumed,
@@ -300,6 +302,9 @@ function ReportWorkbenchInner({
               </p>
             </header>
             <PhotoList photos={photos} onChange={setPhotos} />
+            {usageHint && (
+              <p className="workbench-hint workbench-hint--quota">{usageHint}</p>
+            )}
             {generateBlockedReason && (
               <p className="workbench-hint workbench-hint--warn">
                 {generateBlockedReason}

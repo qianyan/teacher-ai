@@ -1,4 +1,4 @@
-import { getSupabaseAdminClient } from "./supabase-admin";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const HISTORY_MAX_ROWS = 20;
 const HISTORY_TABLE = "history_entries";
@@ -38,9 +38,7 @@ function stringOrNull(value: unknown): string | null {
 }
 
 function ensureNoFileBlob(value: unknown): boolean {
-  if (Array.isArray(value)) {
-    return value.every(ensureNoFileBlob);
-  }
+  if (Array.isArray(value)) return value.every(ensureNoFileBlob);
   if (!isRecord(value)) return true;
   if ("fileBlob" in value) return false;
   return Object.values(value).every(ensureNoFileBlob);
@@ -52,7 +50,6 @@ function parsePhoto(input: unknown): RemotePersistedPhoto | null {
   const logicalName = input.logicalName;
   const uploadStatus = input.uploadStatus;
   const uploadGeneration = input.uploadGeneration;
-
   if (
     typeof id !== "string" ||
     typeof logicalName !== "string" ||
@@ -64,7 +61,6 @@ function parsePhoto(input: unknown): RemotePersistedPhoto | null {
   ) {
     return null;
   }
-
   return {
     id,
     logicalName,
@@ -80,19 +76,13 @@ export function parseRemoteSnapshot(input: unknown): RemoteReportSnapshot | null
   if (!isRecord(input) || !ensureNoFileBlob(input)) return null;
   const photos = input.photos;
   if (!Array.isArray(photos)) return null;
-
   const parsedPhotos: RemotePersistedPhoto[] = [];
   for (const p of photos) {
     const parsed = parsePhoto(p);
     if (!parsed) return null;
     parsedPhotos.push(parsed);
   }
-
-  const biweeklyDateRange = input.biweeklyDateRange;
-  const subTitle = input.subTitle;
-  const introHtml = input.introHtml;
-  const bodyHtml = input.bodyHtml;
-  const fullHtml = input.fullHtml;
+  const { biweeklyDateRange, subTitle, introHtml, bodyHtml, fullHtml } = input;
   if (
     typeof biweeklyDateRange !== "string" ||
     typeof subTitle !== "string" ||
@@ -102,15 +92,7 @@ export function parseRemoteSnapshot(input: unknown): RemoteReportSnapshot | null
   ) {
     return null;
   }
-
-  return {
-    biweeklyDateRange,
-    subTitle,
-    introHtml,
-    bodyHtml,
-    fullHtml,
-    photos: parsedPhotos,
-  };
+  return { biweeklyDateRange, subTitle, introHtml, bodyHtml, fullHtml, photos: parsedPhotos };
 }
 
 function mapRowToEntry(row: Record<string, unknown>): HistoryEntry {
@@ -120,73 +102,69 @@ function mapRowToEntry(row: Record<string, unknown>): HistoryEntry {
       ? row.saved_at
       : new Date(row.saved_at as string | number | Date).toISOString();
   const snapshot = parseRemoteSnapshot(row.snapshot_json);
-  if (!id || !snapshot) {
-    throw new Error("History row shape is invalid");
-  }
+  if (!id || !snapshot) throw new Error("History row shape is invalid");
   return { id, savedAt, snapshot };
 }
 
-export async function listHistoryEntries(): Promise<HistoryEntry[]> {
-  const client = getSupabaseAdminClient();
+export async function listHistoryEntries(client: SupabaseClient): Promise<HistoryEntry[]> {
   const { data, error } = await client
     .from(HISTORY_TABLE)
     .select("id,saved_at,snapshot_json")
     .order("saved_at", { ascending: false })
     .limit(HISTORY_MAX_ROWS);
-  if (error) {
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
   return (data ?? []).map((row) => mapRowToEntry(row as Record<string, unknown>));
 }
 
-export async function getHistoryEntry(id: string): Promise<HistoryEntry | null> {
-  const client = getSupabaseAdminClient();
+export async function getHistoryEntry(
+  client: SupabaseClient,
+  id: string,
+): Promise<HistoryEntry | null> {
   const { data, error } = await client
     .from(HISTORY_TABLE)
     .select("id,saved_at,snapshot_json")
     .eq("id", id)
     .maybeSingle();
-  if (error) {
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
   if (!data) return null;
   return mapRowToEntry(data as Record<string, unknown>);
 }
 
-export async function insertHistoryEntry(input: {
-  snapshot: RemoteReportSnapshot;
-  savedAt?: string;
-}): Promise<HistoryEntry> {
-  const client = getSupabaseAdminClient();
-
+export async function insertHistoryEntry(
+  client: SupabaseClient,
+  input: { userId: string; snapshot: RemoteReportSnapshot; savedAt?: string },
+): Promise<HistoryEntry> {
   const payload: Record<string, unknown> = {
+    user_id: input.userId,
     snapshot_json: input.snapshot,
   };
-  if (input.savedAt) {
-    payload.saved_at = input.savedAt;
-  }
-
+  if (input.savedAt) payload.saved_at = input.savedAt;
   const { data, error } = await client
     .from(HISTORY_TABLE)
     .insert(payload)
     .select("id,saved_at,snapshot_json")
     .single();
-  if (error) {
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
   return mapRowToEntry(data as Record<string, unknown>);
 }
 
-export async function deleteHistoryEntry(id: string): Promise<boolean> {
-  const client = getSupabaseAdminClient();
+export async function deleteHistoryEntry(client: SupabaseClient, id: string): Promise<boolean> {
   const { data, error } = await client
     .from(HISTORY_TABLE)
     .delete()
     .eq("id", id)
     .select("id")
     .maybeSingle();
-  if (error) {
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
   return Boolean(data);
+}
+
+export function userScopedStoragePath(userId: string, relativePath: string): string {
+  const trimmed = relativePath.replace(/^\/+/, "");
+  if (trimmed.startsWith(`${userId}/`)) return trimmed;
+  return `${userId}/${trimmed}`;
+}
+
+export function assertUserOwnsStoragePath(userId: string, objectPath: string): boolean {
+  return objectPath === userId || objectPath.startsWith(`${userId}/`);
 }
