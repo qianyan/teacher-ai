@@ -1,8 +1,7 @@
 "use client";
 
 import { AppHeader } from "@/components/AppHeader";
-import { PhotoList } from "@/components/PhotoList";
-import { RichEditor } from "@/components/RichEditor";
+import { ReportWorkbench } from "@/components/ReportWorkbench";
 import { SessionUnlock } from "@/components/SessionUnlock";
 import {
   DEFAULT_BODY_HTML,
@@ -25,14 +24,6 @@ import {
 } from "@/lib/user-toast";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
-
-const PreviewPanel = dynamic(
-  () =>
-    import("@/components/PreviewPanel").then((m) => ({
-      default: m.PreviewPanel,
-    })),
-  { ssr: false },
-);
 
 const HistorySidebar = dynamic(
   () =>
@@ -65,6 +56,7 @@ export default function HomePage() {
   const [fullHtml, setFullHtml] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [advanceToPreview, setAdvanceToPreview] = useState(false);
 
   const [historySidebarOpen, setHistorySidebarOpen] = useState(false);
 
@@ -132,6 +124,7 @@ export default function HomePage() {
         throw new Error("No fullHtml in response");
       }
       setFullHtml(data.fullHtml);
+      setAdvanceToPreview(true);
       try {
         await recordHistoryAfterGenerate(data.fullHtml);
       } catch (e) {
@@ -196,6 +189,10 @@ export default function HomePage() {
     setHistorySidebarOpen(false);
   }, []);
 
+  const handleAdvanceToPreviewConsumed = useCallback(() => {
+    setAdvanceToPreview(false);
+  }, []);
+
   if (isHydrating) {
     return (
       <SessionUnlock>
@@ -233,83 +230,25 @@ export default function HomePage() {
           />
         )}
 
-        <div className="app-grid app-grid--main">
-          <div className="app-stack-col" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <section className="app-panel">
-              <h2 className="app-section-title">版面与日期</h2>
-              <label className="app-label" htmlFor="biweekly-range">
-                双周日期徽章（中国大陆工作日）
-              </label>
-              <input
-                id="biweekly-range"
-                type="text"
-                value={biweeklyDateRange}
-                onChange={(e) => setBiweeklyDateRange(e.target.value)}
-                className="app-input app-input--narrow"
-                style={{ marginBottom: 16 }}
-              />
-              <label className="app-label" htmlFor="sub-title">
-                副标题（横幅下红字一行）
-              </label>
-              <input
-                id="sub-title"
-                type="text"
-                value={subTitle}
-                onChange={(e) => setSubTitle(e.target.value)}
-                className="app-input"
-                style={{ marginBottom: 0 }}
-              />
-            </section>
-
-            <section className="app-panel">
-              <RichEditor
-                label="开篇（白底 intro 区域）"
-                valueHtml={introHtml}
-                onChangeHtml={setIntroHtml}
-                placeholder="问候语与双周概述…"
-                minHeight={140}
-              />
-              <RichEditor
-                label="结构化正文（各板块要点，供模型扩展为 section）"
-                valueHtml={bodyHtml}
-                onChangeHtml={setBodyHtml}
-                placeholder="按板块写好要点与照片前缀说明…"
-                minHeight={280}
-              />
-            </section>
-          </div>
-
-          <aside className="app-panel app-aside">
-            <h2 className="app-section-title">照片与生成</h2>
-            <PhotoList photos={photos} onChange={setPhotos} />
-            {generateBlockedReason && (
-              <p
-                style={{
-                  fontSize: 13,
-                  color: "var(--text-muted)",
-                  margin: "0 0 10px",
-                }}
-              >
-                {generateBlockedReason}
-              </p>
-            )}
-            <button
-              type="button"
-              className="btn btn--primary btn--lg"
-              style={{ width: "100%" }}
-              onClick={generate}
-              disabled={loading || !photosSynced}
-              title={generateBlockedReason}
-            >
-              {loading ? "生成中…" : "生成预览 HTML"}
-            </button>
-            {error && <p className="text-error">{error}</p>}
-          </aside>
-        </div>
-
-        <section className="app-panel app-preview-section" style={{ marginTop: 20 }}>
-          <PreviewPanel fullHtml={fullHtml} photos={photos} />
-        </section>
+        <ReportWorkbench
+          biweeklyDateRange={biweeklyDateRange}
+          setBiweeklyDateRange={setBiweeklyDateRange}
+          subTitle={subTitle}
+          setSubTitle={setSubTitle}
+          introHtml={introHtml}
+          setIntroHtml={setIntroHtml}
+          bodyHtml={bodyHtml}
+          setBodyHtml={setBodyHtml}
+          photos={photos}
+          setPhotos={setPhotos}
+          fullHtml={fullHtml}
+          loading={loading}
+          error={error}
+          generateBlockedReason={generateBlockedReason}
+          onGenerate={generate}
+          advanceToPreview={advanceToPreview}
+          onAdvanceToPreviewConsumed={handleAdvanceToPreviewConsumed}
+        />
       </main>
     </SessionUnlock>
   );
