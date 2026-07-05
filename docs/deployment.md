@@ -12,7 +12,16 @@ This project supports three deployment targets: `local`, `preview`, and `product
 
 ## Local
 
-Prepare local development:
+Local development uses an **isolated Supabase stack in Docker**, separate from preview/production. See [local-development.md](./local-development.md) for the full guide.
+
+First-time setup:
+
+```bash
+cp .env.local.secrets.example .env.local.secrets   # add LLM_API_KEY
+npm run provision:local
+```
+
+Prepare local development (validate existing `.env.local`):
 
 ```bash
 npm run prepare:local
@@ -98,6 +107,24 @@ npm run env:validate:production
 For Vercel environments, prefer the prepare scripts because they first pull remote environment variables into ignored `.vercel/.env.*.local` files.
 
 The validator does not print secret values. It reports only variable names and the rule that failed.
+
+## Database migrations
+
+| Command | Scope | Data impact |
+| --- | --- | --- |
+| `npm run db:migrate:local` | Local Docker Supabase | **Additive only** — applies pending migrations |
+| `npm run db:migrate:remote` | Linked remote Supabase | **Additive only** — `supabase db push --linked` |
+| `npm run db:reset:local` | Local Docker only | **Wipes all local data** — never used in CI |
+| `npm run provision:local` | Local dev setup | Includes local reset for a clean stack |
+
+**CI safety:** The validate job runs `npm run test:ci-db-safety`, which fails if any workflow uses `db reset --linked`, `db reset` without `--local`, or local-only commands like `provision:local`. Remote/preview/production databases are never reset by this pipeline.
+
+To apply migrations to a linked remote project manually:
+
+```bash
+npx supabase link --project-ref <your-ref>
+npm run db:migrate:remote
+```
 
 ## GitHub Actions
 

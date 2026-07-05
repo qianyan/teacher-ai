@@ -35,6 +35,9 @@ jobs:
       - name: Run environment validator tests
         run: npm run test:env
 
+      - name: Check CI database safety
+        run: npm run test:ci-db-safety
+
       - name: Lint
         run: npm run lint
 

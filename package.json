@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test:env": "tsx scripts/validate-env.test.ts",
+    "test:ci-db-safety": "tsx scripts/check-ci-db-safety.test.ts",
     "smoke:preview": "tsx scripts/smoke-preview.ts",
     "env:validate": "tsx scripts/validate-env.ts",
     "env:validate:local": "tsx scripts/validate-env.ts --target local --env-file .env.local",
@@ -24,7 +25,14 @@
     "deploy:preview": "npm run verify:preview && npx vercel --yes",
     "deploy:production": "npm run verify:production && npx vercel --prod --yes",
     "playwright:install": "playwright install chromium",
-    "e2b:build-template": "tsx e2b/build-template.ts"
+    "e2b:build-template": "tsx e2b/build-template.ts",
+    "provision:local": "tsx scripts/provision-local.ts",
+    "db:migrate:local": "tsx scripts/migrate-db.ts --target local",
+    "db:migrate:remote": "tsx scripts/migrate-db.ts --target linked",
+    "db:reset:local": "tsx scripts/migrate-db.ts --target local --reset",
+    "supabase:start": "npx supabase start",
+    "supabase:stop": "npx supabase stop",
+    "supabase:status": "npx supabase status"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

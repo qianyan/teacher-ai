@@ -1,0 +1,2 @@
+-- Optional seed data for local development.
+-- Migrations create schema; keep this file for manual fixtures if needed.
