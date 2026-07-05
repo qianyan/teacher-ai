@@ -70,7 +70,7 @@ function main(): void {
   const { target, envFile } = parseArgs(process.argv.slice(2));
 
   if (envFile) {
-    const result = dotenv.config({ path: envFile });
+    const result = dotenv.config({ path: envFile, override: true });
     if (result.error) {
       throw new Error(`Could not load ${envFile}: ${result.error.message}`);
     }
