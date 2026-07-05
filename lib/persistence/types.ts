@@ -1,4 +1,5 @@
 import type { PhotoEntry } from "@/lib/photos/inject-blobs";
+import type { ReportTemplateId } from "@/lib/report/templates";
 
 /** One photo row stored in IndexedDB (Blob is IDB-native). */
 export type PersistedPhoto = {
@@ -15,7 +16,9 @@ export type PersistedPhoto = {
 
 /** Shared payload for draft and history entries. */
 export type ReportSnapshot = {
+  templateId: ReportTemplateId;
   biweeklyDateRange: string;
+  englishClassName: string;
   subTitle: string;
   introHtml: string;
   bodyHtml: string;
@@ -36,7 +39,9 @@ export type HistoryRecord = {
 };
 
 export type HydratedEditorState = {
+  templateId: ReportTemplateId;
   biweeklyDateRange: string;
+  englishClassName: string;
   subTitle: string;
   introHtml: string;
   bodyHtml: string;

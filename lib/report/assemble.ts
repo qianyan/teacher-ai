@@ -5,6 +5,8 @@
 export type AssembleOptions = {
   /** Shown in `.info-badge` */
   biweeklyDateRange: string;
+  /** English class name in `.title-en .name` (e.g. Infant D) */
+  englishClassName: string;
   /** `.sub-title` line under the English titles */
   subTitle: string;
   /** Inner HTML for `.intro-text` (paragraphs) */
@@ -27,9 +29,16 @@ export function escapeText(s: string): string {
  */
 export function applyShellReplacements(
   shellHtml: string,
-  opts: Pick<AssembleOptions, "biweeklyDateRange" | "subTitle" | "introHtml">,
+  opts: Pick<
+    AssembleOptions,
+    "biweeklyDateRange" | "englishClassName" | "subTitle" | "introHtml"
+  >,
 ): string {
   let out = shellHtml;
+  out = out.replace(
+    /<span class="name">[\s\S]*?<\/span>/,
+    `<span class="name">${escapeText(opts.englishClassName)}</span>`,
+  );
   out = out.replace(
     /<span class="info-badge">[\s\S]*?<\/span>/,
     `<span class="info-badge">${escapeText(opts.biweeklyDateRange)}</span>`,
@@ -52,6 +61,7 @@ export function assembleFullDocument(
 ): string {
   const head = applyShellReplacements(shellHtml, {
     biweeklyDateRange: opts.biweeklyDateRange,
+    englishClassName: opts.englishClassName,
     subTitle: opts.subTitle,
     introHtml: opts.introHtml,
   });

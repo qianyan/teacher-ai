@@ -9,7 +9,7 @@ description: Use when producing toddler class biweekly newsletter HTML (托班�
 
 ## Locked chrome (do not edit)
 
-**Source of truth:** [reference-shell.html](toddler-biweekly-report/reference-shell.html) (full `<head>` + inline CSS + `<body>` opening + `.container` + `.header` through the closing `</div>` of `.header`).
+**Source of truth:** theme shells under `lib/report/templates/{templateId}/shell.html` (default `cream-soft`; also `ocean-fresh`). Local [reference-shell.html](toddler-biweekly-report/reference-shell.html) mirrors `cream-soft` for offline skill use.
 
 - **Keep byte-for-byte** except **one** substitution each issue: the text inside `<span class="info-badge">…</span>` — see **Biweekly date badge (中国大陆工作日)** below.
 - Do **not** change `<title>`, English/Chinese titles, subtitle, intro paragraph, SVG decorations, or layout—those stay as in the reference (aligned with `托班两周周报_奶油色柔和_最终版.html`).

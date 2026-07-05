@@ -2,6 +2,7 @@
 
 import type { PhotoEntry } from "@/lib/photos/inject-blobs";
 import { photoPersistSignature } from "@/lib/photos/inject-blobs";
+import type { ReportTemplateId } from "@/lib/report/templates";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   hydrateStateFromSnapshot,
@@ -25,13 +26,17 @@ const TEXT_DEBOUNCE_MS = 1000;
 const PHOTO_DEBOUNCE_MS = 2500;
 
 export type UseReportPersistenceParams = {
+  templateId: ReportTemplateId;
+  setTemplateId: (v: ReportTemplateId) => void;
   biweeklyDateRange: string;
+  englishClassName: string;
   subTitle: string;
   introHtml: string;
   bodyHtml: string;
   photos: PhotoEntry[];
   fullHtml: string | null;
   setBiweeklyDateRange: (v: string) => void;
+  setEnglishClassName: (v: string) => void;
   setSubTitle: (v: string) => void;
   setIntroHtml: (v: string) => void;
   setBodyHtml: (v: string) => void;
@@ -42,13 +47,17 @@ export type UseReportPersistenceParams = {
 
 export function useReportPersistence(params: UseReportPersistenceParams) {
   const {
+    templateId,
+    setTemplateId,
     biweeklyDateRange,
+    englishClassName,
     subTitle,
     introHtml,
     bodyHtml,
     photos,
     fullHtml,
     setBiweeklyDateRange,
+    setEnglishClassName,
     setSubTitle,
     setIntroHtml,
     setBodyHtml,
@@ -63,7 +72,9 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
   const [history, setHistory] = useState<HistoryRecord[]>([]);
 
   const stateRef = useRef({
+    templateId,
     biweeklyDateRange,
+    englishClassName,
     subTitle,
     introHtml,
     bodyHtml,
@@ -71,7 +82,9 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
     fullHtml,
   });
   stateRef.current = {
+    templateId,
     biweeklyDateRange,
+    englishClassName,
     subTitle,
     introHtml,
     bodyHtml,
@@ -80,7 +93,9 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
   };
 
   const settersRef = useRef({
+    setTemplateId,
     setBiweeklyDateRange,
+    setEnglishClassName,
     setSubTitle,
     setIntroHtml,
     setBodyHtml,
@@ -88,7 +103,9 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
     setFullHtml,
   });
   settersRef.current = {
+    setTemplateId,
     setBiweeklyDateRange,
+    setEnglishClassName,
     setSubTitle,
     setIntroHtml,
     setBodyHtml,
@@ -100,7 +117,9 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
 
   const applyHydratedState = useCallback((h: HydratedEditorState) => {
     const s = settersRef.current;
+    s.setTemplateId(h.templateId);
     s.setBiweeklyDateRange(h.biweeklyDateRange);
+    s.setEnglishClassName(h.englishClassName);
     s.setSubTitle(h.subTitle);
     s.setIntroHtml(h.introHtml);
     s.setBodyHtml(h.bodyHtml);
@@ -159,7 +178,9 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
     return () => window.clearTimeout(t);
   }, [
     isHydrating,
+    templateId,
     biweeklyDateRange,
+    englishClassName,
     subTitle,
     introHtml,
     bodyHtml,
@@ -217,7 +238,9 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
       applyHydratedState(h);
       try {
         const snap = snapshotFromState({
+          templateId: h.templateId,
           biweeklyDateRange: h.biweeklyDateRange,
+          englishClassName: h.englishClassName,
           subTitle: h.subTitle,
           introHtml: h.introHtml,
           bodyHtml: h.bodyHtml,

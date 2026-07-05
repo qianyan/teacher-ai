@@ -7,8 +7,9 @@ import {
 import { assembleFullDocument } from "@/lib/report/assemble";
 import {
   readReferenceFooter,
-  readReferenceShell,
+  readTemplateShell,
 } from "@/lib/report/read-assets";
+import { resolveTemplateId } from "@/lib/report/templates";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
@@ -16,10 +17,12 @@ export const maxDuration = 300;
 
 export type GenerateRequestBody = {
   biweeklyDateRange: string;
+  englishClassName: string;
   subTitle: string;
   introHtml: string;
   bodyHtml: string;
   photoLogicalNames: string[];
+  templateId?: string;
 };
 
 export async function POST(request: Request) {
@@ -33,15 +36,24 @@ export async function POST(request: Request) {
 
     const {
       biweeklyDateRange,
+      englishClassName,
       subTitle,
       introHtml,
       bodyHtml,
       photoLogicalNames,
+      templateId: rawTemplateId,
     } = body;
+    const templateId = resolveTemplateId(rawTemplateId);
 
     if (!biweeklyDateRange || typeof biweeklyDateRange !== "string") {
       return NextResponse.json(
         { error: "biweeklyDateRange is required" },
+        { status: 400 },
+      );
+    }
+    if (typeof englishClassName !== "string" || !englishClassName.trim()) {
+      return NextResponse.json(
+        { error: "englishClassName is required" },
         { status: 400 },
       );
     }
@@ -77,16 +89,19 @@ export async function POST(request: Request) {
 
     const dynamicBodyHtml = await generateDynamicBodyHtml({
       biweeklyDateRange,
+      englishClassName,
       subTitle,
       introHtml,
       bodyHtml,
       photoLogicalNames,
+      templateId,
     });
 
-    const shell = readReferenceShell();
+    const shell = readTemplateShell(templateId);
     const footer = readReferenceFooter();
     const fullHtml = assembleFullDocument(shell, footer, {
       biweeklyDateRange,
+      englishClassName,
       subTitle,
       introHtml,
       dynamicBodyHtml,

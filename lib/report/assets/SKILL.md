@@ -9,14 +9,23 @@ description: Chinese toddler class biweekly newsletter (托班两周周报). The
 
 | Part | How it is produced |
 |------|--------------------|
-| **Page chrome** (head, CSS, header hero, container open) | Fixed file [reference-shell.html](reference-shell.html) — not edited by the model. |
-| **Date badge, subtitle, intro** (`.info-badge`, `.sub-title`, `.intro-text`) | **Template replacement** on the server: values come from the API request, not from the model output. |
+| **Page chrome** (head, CSS, header hero, container open) | Fixed theme shell under `lib/report/templates/{templateId}/shell.html` — not edited by the model. |
+| **Date badge, English class name, subtitle, intro** (`.info-badge`, `.title-en .name`, `.sub-title`, `.intro-text`) | **Template replacement** on the server: values come from the API request, not from the model output. |
 | **Middle of the page** (`.section` … + `.tips-section` …) | **AI-generated** HTML fragment only (`dynamicBodyHtml`). No `<!DOCTYPE>`, no `<html>`, no full header, no outer wrapper beyond those blocks. |
-| **Footer** (red star bar, closing) | Fixed file [reference-footer.html](reference-footer.html) **appended** after the dynamic body. |
+| **Footer** (star bar, closing) | Fixed file [reference-footer.html](reference-footer.html) **appended** after the dynamic body. |
+
+### Available themes (`templateId`)
+
+| ID | Name | Shell path |
+|----|------|------------|
+| `cream-soft` | 奶油柔和 | `lib/report/templates/cream-soft/shell.html` |
+| `ocean-fresh` | 清新海洋蓝 | `lib/report/templates/ocean-fresh/shell.html` |
+
+All themes share the **same CSS class names and CSS variables** (`--color-red`, `--color-bg`, etc.); only palette and header decorations differ. AI output markup is identical across themes.
 
 Full document build (see `lib/report/assemble.ts`):
 
-1. `reference-shell.html` with replacements: biweekly range → `.info-badge`, subtitle → `.sub-title`, intro → `.intro-text`.
+1. Theme `shell.html` with replacements: biweekly range → `.info-badge`, English class name → `.title-en .name`, subtitle → `.sub-title`, intro → `.intro-text`.
 2. Then the model fragment (`dynamicBodyHtml`).
 3. Then `reference-footer.html`.
 
@@ -29,13 +38,13 @@ Strict structure:
 1. **One or more** `<div class="section" style="background: …">` — alternate backgrounds: first section after the header uses `background: var(--color-bg)`, then `#fff` and `var(--color-bg)` in turn.
 2. **One** `<div class="tips-section">` with `.tips-title`, `.tips-grid` / `.tip-card`, `.closing-section` as needed.
 
-**Titles:** use `.section-title` and `.tips-title` (red, `var(--color-red)`; see shell CSS). **Do not** prefix with Chinese ordinals (一、二、…).
+**Titles:** use `.section-title` and `.tips-title` (primary accent, `var(--color-red)`; see shell CSS). **Do not** prefix with Chinese ordinals (一、二、…).
 
-**Photos:** do not use `.photo-label`. **Landscape** grids: **6** images → `photo-grid grid-3` (3×2); **8** → `grid-4` (4×2). Other counts: follow the same class rules as in [reference-shell.html](reference-shell.html).
+**Photos:** do not use `.photo-label`. **Landscape** grids: **6** images → `photo-grid grid-3` (3×2); **8** → `grid-4` (4×2). Other counts: follow the same class rules as in the theme shell.
 
 **Photo placeholders (app integration):** use empty `<img>` tags with `data-report-photo="PREFIX:INDEX"`. The prefix is the same text as the photo group name before the index in the logical filename; **INDEX** is the numeric part (e.g. file `探究1.jpg` → `data-report-photo="探究:1"`). The client maps these keys to uploaded blob URLs from `photoLogicalNames`.
 
-Context for generation is JSON: `bodyHtml`, `introHtml`, `subTitle`, `biweeklyDateRange`, `photoLogicalNames` (see `POST /api/generate`).
+Context for generation is JSON: `bodyHtml`, `introHtml`, `subTitle`, `englishClassName`, `biweeklyDateRange`, `photoLogicalNames`, `templateId` (see `POST /api/generate`).
 
 ## Biweekly date badge (中国大陆工作日)
 
@@ -56,4 +65,4 @@ python3 scripts/generate-long-screenshot.py path/to/report.html
 - [ ] **No** 一、二、… on `.section-title` / `.tips-title`.
 - [ ] Grids: 6 → `grid-3`, 8 → `grid-4`; **no** `.photo-label`.
 - [ ] `data-report-photo` keys align with `photoLogicalNames` (prefix + numeric index per file).
-- [ ] `reference-shell.html` / `reference-footer.html` stay the canonical head and tail; only badge / subtitle / intro are substituted by the server.
+- [ ] Theme shell / `reference-footer.html` stay the canonical head and tail; only badge / subtitle / intro are substituted by the server.

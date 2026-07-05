@@ -1,6 +1,7 @@
 import { createLlmClient } from "@/lib/llm";
 import type { ChatMessage, ToolDefinition } from "@/lib/llm/types";
 import { SKILL_TOOL_DEFINITIONS, executeSkillTool } from "@/lib/agent/skill-tools";
+import type { ReportTemplateId } from "@/lib/report/templates";
 
 const MAX_AGENT_TURNS = 8;
 
@@ -24,20 +25,24 @@ When you have finished and no more tool calls are needed, output the HTML fragme
 
 export type GenerateInput = {
   biweeklyDateRange: string;
+  englishClassName: string;
   subTitle: string;
   introHtml: string;
   bodyHtml: string;
   photoLogicalNames: string[];
+  templateId: ReportTemplateId;
 };
 
 function buildUserPayload(input: GenerateInput): string {
   return JSON.stringify(
     {
       biweeklyDateRange: input.biweeklyDateRange,
+      englishClassName: input.englishClassName,
       subTitle: input.subTitle,
       introHtml: input.introHtml,
       bodyHtml: input.bodyHtml,
       photoLogicalNames: input.photoLogicalNames,
+      templateId: input.templateId,
     },
     null,
     2,
@@ -82,10 +87,12 @@ export async function generateDynamicBodyHtml(
       const toolMessages = await Promise.all(
         toolCalls.map(async (tc) => {
           const name = tc.function.name;
-          const cached = toolResultCache.get(name);
-          const content = cached ?? (await executeSkillTool(name));
+          const argsJson = tc.function.arguments;
+          const cacheKey = `${name}:${argsJson ?? ""}`;
+          const cached = toolResultCache.get(cacheKey);
+          const content = cached ?? (await executeSkillTool(name, argsJson));
           if (!cached) {
-            toolResultCache.set(name, content);
+            toolResultCache.set(cacheKey, content);
           }
 
           return {

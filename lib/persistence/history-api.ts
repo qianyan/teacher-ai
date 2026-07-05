@@ -1,4 +1,6 @@
+import { DEFAULT_ENGLISH_CLASS_NAME } from "@/lib/persistence/defaults";
 import type { HistoryRecord, PersistedPhoto, ReportSnapshot } from "./types";
+import { resolveTemplateId } from "@/lib/report/templates";
 
 type RemotePersistedPhoto = Omit<PersistedPhoto, "fileBlob">;
 type RemoteReportSnapshot = Omit<ReportSnapshot, "photos"> & {
@@ -16,7 +18,9 @@ function stringOrNull(value: unknown): string | null {
 
 function toRemoteSnapshot(snapshot: ReportSnapshot): RemoteReportSnapshot {
   return {
+    templateId: snapshot.templateId,
     biweeklyDateRange: snapshot.biweeklyDateRange,
+    englishClassName: snapshot.englishClassName,
     subTitle: snapshot.subTitle,
     introHtml: snapshot.introHtml,
     bodyHtml: snapshot.bodyHtml,
@@ -90,7 +94,13 @@ function parseSnapshot(value: unknown): ReportSnapshot | null {
   }
 
   return {
+    templateId: resolveTemplateId(value.templateId),
     biweeklyDateRange,
+    englishClassName:
+      typeof value.englishClassName === "string" &&
+      value.englishClassName.trim()
+        ? value.englishClassName
+        : DEFAULT_ENGLISH_CLASS_NAME,
     subTitle,
     introHtml,
     bodyHtml,

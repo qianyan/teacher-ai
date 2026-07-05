@@ -3,6 +3,7 @@
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { MAX_HISTORY } from "@/lib/persistence/idb";
 import type { HistoryRecord } from "@/lib/persistence/types";
+import { REPORT_TEMPLATES } from "@/lib/report/templates";
 import type { CSSProperties } from "react";
 import { memo, useState } from "react";
 
@@ -101,6 +102,9 @@ function HistorySidebarInner({
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text)" }}>
                     {row.snapshot.biweeklyDateRange}
+                    <span className="history-template-tag">
+                      {REPORT_TEMPLATES[row.snapshot.templateId].name}
+                    </span>
                   </div>
                   <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
                     {new Date(row.savedAt).toLocaleString()}

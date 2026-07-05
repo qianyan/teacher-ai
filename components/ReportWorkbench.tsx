@@ -1,6 +1,10 @@
 "use client";
 
 import type { PhotoEntry } from "@/lib/photos/inject-blobs";
+import {
+  REPORT_TEMPLATE_LIST,
+  type ReportTemplateId,
+} from "@/lib/report/templates";
 import dynamic from "next/dynamic";
 import {
   memo,
@@ -60,8 +64,12 @@ const STEPS: {
 ];
 
 type Props = {
+  templateId: ReportTemplateId;
+  setTemplateId: (v: ReportTemplateId) => void;
   biweeklyDateRange: string;
   setBiweeklyDateRange: (v: string) => void;
+  englishClassName: string;
+  setEnglishClassName: (v: string) => void;
   subTitle: string;
   setSubTitle: (v: string) => void;
   introHtml: string;
@@ -71,6 +79,7 @@ type Props = {
   photos: PhotoEntry[];
   setPhotos: Dispatch<SetStateAction<PhotoEntry[]>>;
   fullHtml: string | null;
+  setFullHtml: (v: string | null) => void;
   loading: boolean;
   error: string | null;
   generateBlockedReason?: string;
@@ -81,8 +90,12 @@ type Props = {
 };
 
 function ReportWorkbenchInner({
+  templateId,
+  setTemplateId,
   biweeklyDateRange,
   setBiweeklyDateRange,
+  englishClassName,
+  setEnglishClassName,
   subTitle,
   setSubTitle,
   introHtml,
@@ -92,6 +105,7 @@ function ReportWorkbenchInner({
   photos,
   setPhotos,
   fullHtml,
+  setFullHtml,
   loading,
   error,
   generateBlockedReason,
@@ -102,6 +116,9 @@ function ReportWorkbenchInner({
 }: Props) {
   const [step, setStep] = useState<WorkbenchStep>("meta");
   const [writePane, setWritePane] = useState<WritePane>("intro");
+  const [templateSwitchHint, setTemplateSwitchHint] = useState<string | null>(
+    null,
+  );
   const [visited, setVisited] = useState<Set<WorkbenchStep>>(
     () => new Set(["meta"]),
   );
@@ -122,6 +139,24 @@ function ReportWorkbenchInner({
     onAdvanceToPreviewConsumed?.();
   }, [advanceToPreview, goToStep, onAdvanceToPreviewConsumed]);
 
+  useEffect(() => {
+    if (fullHtml) setTemplateSwitchHint(null);
+  }, [fullHtml]);
+
+  const handleTemplateChange = useCallback(
+    (next: ReportTemplateId) => {
+      if (next === templateId) return;
+      setTemplateId(next);
+      if (fullHtml) {
+        setFullHtml(null);
+        setTemplateSwitchHint("主题已更换，请重新生成预览。");
+      } else {
+        setTemplateSwitchHint(null);
+      }
+    },
+    [fullHtml, setFullHtml, setTemplateId, templateId],
+  );
+
   const stepIndex = STEPS.findIndex((s) => s.id === step);
 
   return (
@@ -132,7 +167,11 @@ function ReportWorkbenchInner({
             const isActive = s.id === step;
             const isDone =
               s.id === "meta"
-                ? Boolean(biweeklyDateRange.trim() && subTitle.trim())
+                ? Boolean(
+                    biweeklyDateRange.trim() &&
+                      englishClassName.trim() &&
+                      subTitle.trim(),
+                  )
                 : s.id === "write"
                   ? introHtml.replace(/<[^>]+>/g, "").trim().length > 0 &&
                     bodyHtml.replace(/<[^>]+>/g, "").trim().length > 0
@@ -185,6 +224,50 @@ function ReportWorkbenchInner({
                 像手帐扉页一样先定好双周区间与副标题，后面的撰文和照片都会跟着这一版式走。
               </p>
             </header>
+            <fieldset className="template-picker">
+              <legend className="app-label">周报主题</legend>
+              <div className="template-picker__grid" role="radiogroup" aria-label="周报主题">
+                {REPORT_TEMPLATE_LIST.map((tpl) => {
+                  const selected = tpl.id === templateId;
+                  return (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      className={`template-card${selected ? " is-selected" : ""}`}
+                      onClick={() => handleTemplateChange(tpl.id)}
+                    >
+                      <span
+                        className="template-card__swatch"
+                        aria-hidden
+                        style={{
+                          background: `linear-gradient(135deg, ${tpl.preview.bg} 0%, ${tpl.preview.bg} 40%, ${tpl.preview.primary} 40%, ${tpl.preview.primary} 70%, ${tpl.preview.accent} 70%)`,
+                        }}
+                      />
+                      <span className="template-card__body">
+                        <span className="template-card__name">{tpl.name}</span>
+                        <span className="template-card__desc">{tpl.description}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+            {templateSwitchHint && (
+              <p className="workbench-hint workbench-hint--warn">{templateSwitchHint}</p>
+            )}
+            <label className="app-label" htmlFor="english-class-name">
+              英文班级名（大标题，如 Infant D）
+            </label>
+            <input
+              id="english-class-name"
+              type="text"
+              value={englishClassName}
+              onChange={(e) => setEnglishClassName(e.target.value)}
+              className="app-input"
+              style={{ marginBottom: 16 }}
+            />
             <label className="app-label" htmlFor="biweekly-range">
               双周日期徽章（中国大陆工作日）
             </label>

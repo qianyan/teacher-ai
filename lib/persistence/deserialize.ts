@@ -1,4 +1,6 @@
 import type { PhotoEntry } from "@/lib/photos/inject-blobs";
+import { DEFAULT_ENGLISH_CLASS_NAME } from "@/lib/persistence/defaults";
+import { resolveTemplateId } from "@/lib/report/templates";
 import type { HydratedEditorState, PersistedPhoto, ReportSnapshot } from "./types";
 
 export function photoEntryFromPersisted(p: PersistedPhoto): PhotoEntry {
@@ -51,7 +53,13 @@ export function revokePhotoEntryBlobUrls(photos: PhotoEntry[]): void {
 export function hydrateStateFromSnapshot(snapshot: ReportSnapshot): HydratedEditorState {
   const photos = snapshot.photos.map(photoEntryFromPersisted);
   return {
+    templateId: resolveTemplateId(snapshot.templateId),
     biweeklyDateRange: snapshot.biweeklyDateRange,
+    englishClassName:
+      typeof snapshot.englishClassName === "string" &&
+      snapshot.englishClassName.trim()
+        ? snapshot.englishClassName
+        : DEFAULT_ENGLISH_CLASS_NAME,
     subTitle: snapshot.subTitle,
     introHtml: snapshot.introHtml,
     bodyHtml: snapshot.bodyHtml,

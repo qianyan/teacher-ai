@@ -6,11 +6,14 @@ import { ReportWorkbench } from "@/components/ReportWorkbench";
 import {
   DEFAULT_BODY_HTML,
   DEFAULT_BIWEEKLY_DATE_RANGE,
+  DEFAULT_ENGLISH_CLASS_NAME,
   DEFAULT_INTRO_HTML,
   DEFAULT_SUB_TITLE,
+  DEFAULT_TEMPLATE_ID,
 } from "@/lib/persistence/defaults";
 import { useReportPersistence } from "@/lib/persistence/use-report-persistence";
 import type { PhotoEntry } from "@/lib/photos/inject-blobs";
+import type { ReportTemplateId } from "@/lib/report/templates";
 import { allReportPhotosSynced } from "@/lib/photos/sync-guard";
 import {
   readHistorySidebarOpen,
@@ -36,7 +39,9 @@ const HistorySidebar = dynamic(
 export default function HomePage() {
   const defaultHydratedState = useMemo(
     () => ({
+      templateId: DEFAULT_TEMPLATE_ID,
       biweeklyDateRange: DEFAULT_BIWEEKLY_DATE_RANGE,
+      englishClassName: DEFAULT_ENGLISH_CLASS_NAME,
       subTitle: DEFAULT_SUB_TITLE,
       introHtml: DEFAULT_INTRO_HTML,
       bodyHtml: DEFAULT_BODY_HTML,
@@ -46,8 +51,14 @@ export default function HomePage() {
     [],
   );
 
+  const [templateId, setTemplateId] = useState<ReportTemplateId>(
+    DEFAULT_TEMPLATE_ID,
+  );
   const [biweeklyDateRange, setBiweeklyDateRange] = useState(
     DEFAULT_BIWEEKLY_DATE_RANGE,
+  );
+  const [englishClassName, setEnglishClassName] = useState(
+    DEFAULT_ENGLISH_CLASS_NAME,
   );
   const [subTitle, setSubTitle] = useState(DEFAULT_SUB_TITLE);
   const [introHtml, setIntroHtml] = useState(DEFAULT_INTRO_HTML);
@@ -78,13 +89,17 @@ export default function HomePage() {
     deleteHistoryEntry,
     clearDraftAndReset,
   } = useReportPersistence({
+    templateId,
+    setTemplateId,
     biweeklyDateRange,
+    englishClassName,
     subTitle,
     introHtml,
     bodyHtml,
     photos,
     fullHtml,
     setBiweeklyDateRange,
+    setEnglishClassName,
     setSubTitle,
     setIntroHtml,
     setBodyHtml,
@@ -112,7 +127,9 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
+          templateId,
           biweeklyDateRange,
+          englishClassName,
           subTitle,
           introHtml,
           bodyHtml,
@@ -140,7 +157,9 @@ export default function HomePage() {
       setLoading(false);
     }
   }, [
+    templateId,
     biweeklyDateRange,
+    englishClassName,
     subTitle,
     introHtml,
     bodyHtml,
@@ -244,8 +263,12 @@ export default function HomePage() {
         )}
 
         <ReportWorkbench
+          templateId={templateId}
+          setTemplateId={setTemplateId}
           biweeklyDateRange={biweeklyDateRange}
           setBiweeklyDateRange={setBiweeklyDateRange}
+          englishClassName={englishClassName}
+          setEnglishClassName={setEnglishClassName}
           subTitle={subTitle}
           setSubTitle={setSubTitle}
           introHtml={introHtml}
@@ -255,6 +278,7 @@ export default function HomePage() {
           photos={photos}
           setPhotos={setPhotos}
           fullHtml={fullHtml}
+          setFullHtml={setFullHtml}
           loading={loading}
           error={error}
           generateBlockedReason={generateBlockedReason}

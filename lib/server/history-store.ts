@@ -1,4 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { DEFAULT_ENGLISH_CLASS_NAME } from "@/lib/persistence/defaults";
+import { resolveTemplateId, type ReportTemplateId } from "@/lib/report/templates";
 
 export const HISTORY_MAX_ROWS = 20;
 const HISTORY_TABLE = "history_entries";
@@ -14,7 +16,9 @@ type RemotePersistedPhoto = {
 };
 
 export type RemoteReportSnapshot = {
+  templateId: ReportTemplateId;
   biweeklyDateRange: string;
+  englishClassName: string;
   subTitle: string;
   introHtml: string;
   bodyHtml: string;
@@ -92,7 +96,20 @@ export function parseRemoteSnapshot(input: unknown): RemoteReportSnapshot | null
   ) {
     return null;
   }
-  return { biweeklyDateRange, subTitle, introHtml, bodyHtml, fullHtml, photos: parsedPhotos };
+  return {
+    templateId: resolveTemplateId(input.templateId),
+    biweeklyDateRange,
+    englishClassName:
+      typeof input.englishClassName === "string" &&
+      input.englishClassName.trim()
+        ? input.englishClassName
+        : DEFAULT_ENGLISH_CLASS_NAME,
+    subTitle,
+    introHtml,
+    bodyHtml,
+    fullHtml,
+    photos: parsedPhotos,
+  };
 }
 
 function mapRowToEntry(row: Record<string, unknown>): HistoryEntry {
