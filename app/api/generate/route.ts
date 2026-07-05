@@ -92,7 +92,7 @@ export async function POST(request: Request) {
       dynamicBodyHtml,
     });
 
-    await recordGenerateUsage(supabase, user.id);
+    await recordGenerateUsage(user.id);
 
     return NextResponse.json({ dynamicBodyHtml, fullHtml });
   } catch (err) {

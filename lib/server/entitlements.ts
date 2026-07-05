@@ -70,8 +70,9 @@ export async function checkCanGenerate(supabase: UserClient, userId: string): Pr
   }
 }
 
-export async function recordGenerateUsage(supabase: UserClient, userId: string): Promise<void> {
-  const { error } = await supabase.from("usage_events").insert({
+export async function recordGenerateUsage(userId: string): Promise<void> {
+  const { getSupabaseAdminClient } = await import("@/lib/server/supabase-admin");
+  const { error } = await getSupabaseAdminClient().from("usage_events").insert({
     user_id: userId,
     action: "generate",
   });
