@@ -638,6 +638,27 @@ a:hover {
     0 0 0 3px var(--accent-2-soft);
 }
 
+.tiptap-editor {
+  padding: 12px 14px;
+  min-height: calc(var(--rich-editor-min-height, 136px) - 24px);
+  outline: none;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.tiptap-editor p {
+  margin: 0 0 0.5em;
+}
+
+.tiptap-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--text-muted);
+  pointer-events: none;
+  height: 0;
+}
+
 .app-header .theme-toggle {
   flex-shrink: 0;
 }

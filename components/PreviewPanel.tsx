@@ -7,18 +7,21 @@ import {
   buildPhotoInjectionMapForLongScreenshot,
   buildPhotoUrlMapForPersist,
   injectPhotoBlobUrls,
+  photoPreviewSignature,
   type PhotoEntry,
 } from "@/lib/photos/inject-blobs";
 import type { CSSProperties } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+
+const SRCDOC_DEBOUNCE_MS = 200;
 
 type Props = {
   fullHtml: string | null;
   photos: PhotoEntry[];
 };
 
-export function PreviewPanel({ fullHtml, photos }: Props) {
+function PreviewPanelInner({ fullHtml, photos }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const [srcDoc, setSrcDoc] = useState<string>("");
@@ -27,6 +30,10 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
   const [exportError, setExportError] = useState<string | null>(null);
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const [portalMounted, setPortalMounted] = useState(false);
+
+  const photoSig = useMemo(() => photoPreviewSignature(photos), [photos]);
+  const photosRef = useRef(photos);
+  photosRef.current = photos;
 
   const closeFullscreen = useCallback(() => setFullscreenOpen(false), []);
 
@@ -48,10 +55,13 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
       setSrcDoc("");
       return;
     }
-    const map = buildPhotoBlobUrlMap(photos);
-    const injected = injectPhotoBlobUrls(fullHtml, map);
-    setSrcDoc(injected);
-  }, [fullHtml, photos]);
+    const t = window.setTimeout(() => {
+      const map = buildPhotoBlobUrlMap(photosRef.current);
+      const injected = injectPhotoBlobUrls(fullHtml, map);
+      setSrcDoc(injected);
+    }, SRCDOC_DEBOUNCE_MS);
+    return () => window.clearTimeout(t);
+  }, [fullHtml, photoSig]);
 
   async function handleExportPng() {
     if (!fullHtml) return;
@@ -316,6 +326,8 @@ export function PreviewPanel({ fullHtml, photos }: Props) {
   );
 }
 
+export const PreviewPanel = memo(PreviewPanelInner);
+
 const toolbarStyle: CSSProperties = {
   display: "flex",
   alignItems: "center",
@@ -345,4 +357,3 @@ const emptyState: CSSProperties = {
   maxWidth: 480,
   margin: "0 auto",
 };
-

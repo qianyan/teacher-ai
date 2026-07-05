@@ -4,7 +4,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { MAX_HISTORY } from "@/lib/persistence/idb";
 import type { HistoryRecord } from "@/lib/persistence/types";
 import type { CSSProperties } from "react";
-import { useState } from "react";
+import { memo, useState } from "react";
 
 type Props = {
   open: boolean;
@@ -19,7 +19,7 @@ type HistoryConfirm =
   | { action: "delete"; id: string; dateLabel: string }
   | { action: "restore"; id: string; dateLabel: string };
 
-export function HistorySidebar({
+function HistorySidebarInner({
   open,
   onClose,
   history,
@@ -148,6 +148,8 @@ export function HistorySidebar({
     </>
   );
 }
+
+export const HistorySidebar = memo(HistorySidebarInner);
 
 function IconHistory() {
   return (

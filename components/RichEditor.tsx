@@ -3,7 +3,7 @@
 import Placeholder from "@tiptap/extension-placeholder";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { useEffect } from "react";
+import { memo, useEffect, useRef, type CSSProperties } from "react";
 
 type Props = {
   label: string;
@@ -13,13 +13,31 @@ type Props = {
   minHeight?: number;
 };
 
-export function RichEditor({
+const CHANGE_DEBOUNCE_MS = 300;
+
+function RichEditorInner({
   label,
   valueHtml,
   onChangeHtml,
   placeholder = "在此输入…",
   minHeight = 160,
 }: Props) {
+  const onChangeRef = useRef(onChangeHtml);
+  onChangeRef.current = onChangeHtml;
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingHtmlRef = useRef<string | null>(null);
+
+  const flushPending = () => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    if (pendingHtmlRef.current !== null) {
+      onChangeRef.current(pendingHtmlRef.current);
+      pendingHtmlRef.current = null;
+    }
+  };
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -33,12 +51,31 @@ export function RichEditor({
       },
     },
     onUpdate: ({ editor }) => {
-      onChangeHtml(editor.getHTML());
+      const html = editor.getHTML();
+      pendingHtmlRef.current = html;
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        debounceRef.current = null;
+        if (pendingHtmlRef.current !== null) {
+          onChangeRef.current(pendingHtmlRef.current);
+          pendingHtmlRef.current = null;
+        }
+      }, CHANGE_DEBOUNCE_MS);
+    },
+    onBlur: () => {
+      flushPending();
     },
   });
 
   useEffect(() => {
+    return () => {
+      flushPending();
+    };
+  }, []);
+
+  useEffect(() => {
     if (!editor || valueHtml === editor.getHTML()) return;
+    flushPending();
     editor.commands.setContent(valueHtml || "<p></p>", false);
   }, [editor, valueHtml]);
 
@@ -47,30 +84,17 @@ export function RichEditor({
       <label className="app-label">{label}</label>
       <div
         className="rich-editor-surface"
-        style={{ minHeight }}
+        style={
+          {
+            minHeight,
+            "--rich-editor-min-height": `${minHeight}px`,
+          } as CSSProperties
+        }
       >
         <EditorContent editor={editor} />
       </div>
-      <style jsx global>{`
-        .tiptap-editor {
-          padding: 12px 14px;
-          min-height: ${minHeight - 24}px;
-          outline: none;
-          font-size: 15px;
-          line-height: 1.6;
-          color: var(--text);
-        }
-        .tiptap-editor p {
-          margin: 0 0 0.5em;
-        }
-        .tiptap-editor p.is-editor-empty:first-child::before {
-          content: attr(data-placeholder);
-          float: left;
-          color: var(--text-muted);
-          pointer-events: none;
-          height: 0;
-        }
-      `}</style>
     </div>
   );
 }
+
+export const RichEditor = memo(RichEditorInner);

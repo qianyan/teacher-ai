@@ -6,12 +6,9 @@
 
 import { playClassroomUnlockFanfare } from "@/lib/sounds/play-classroom-unlock-fanfare";
 import { preloadUnlockChildVoice, scheduleUnlockChildVoice } from "@/lib/sounds/unlock-child-voice";
-import {
-  browserSupportsWebAuthn,
-  startAuthentication,
-  startRegistration,
-  type PublicKeyCredentialCreationOptionsJSON,
-  type PublicKeyCredentialRequestOptionsJSON,
+import type {
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
 } from "@simplewebauthn/browser";
 import { Fredoka, ZCOOL_KuaiLe } from "next/font/google";
 import Image from "next/image";
@@ -56,6 +53,14 @@ function lockPinFromEnv(): string {
 function prefersReducedMotion(): boolean {
   if (typeof window === "undefined") return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function browserSupportsWebAuthnNative(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.PublicKeyCredential !== undefined &&
+    typeof window.PublicKeyCredential === "function"
+  );
 }
 
 type Props = {
@@ -224,7 +229,9 @@ export function SessionUnlock({ children }: Props) {
         );
         return;
       }
-      const credential = await startAuthentication({ optionsJSON: optJson.options });
+      const credential = await (
+        await import("@simplewebauthn/browser")
+      ).startAuthentication({ optionsJSON: optJson.options });
       const verRes = await fetch("/api/session/webauthn/auth/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -267,7 +274,9 @@ export function SessionUnlock({ children }: Props) {
         setError(typeof optJson.error === "string" ? optJson.error : "没法开始注册通行密钥");
         return;
       }
-      const credential = await startRegistration({ optionsJSON: optJson.options });
+      const credential = await (
+        await import("@simplewebauthn/browser")
+      ).startRegistration({ optionsJSON: optJson.options });
       const verRes = await fetch("/api/session/webauthn/register/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -339,7 +348,7 @@ export function SessionUnlock({ children }: Props) {
 
     const unlocking = fx === "success";
     const splitting = revealPhase === "split";
-    const showWebauthn = webauthnReady && browserSupportsWebAuthn();
+    const showWebauthn = webauthnReady && browserSupportsWebAuthnNative();
 
     return (
       <div
@@ -359,8 +368,12 @@ export function SessionUnlock({ children }: Props) {
           </>
         )}
         {unlocking && !prefersReducedMotion() && <UnlockBurstFlash />}
-        <UnlockConfettiShower active={unlocking} variant="overlay" />
-        <UnlockFireworks active={unlocking && !prefersReducedMotion()} />
+        {unlocking && !prefersReducedMotion() && (
+          <UnlockConfettiShower active={unlocking} variant="overlay" />
+        )}
+        {unlocking && !prefersReducedMotion() && (
+          <UnlockFireworks active={unlocking} />
+        )}
         <div className={`session-unlock-card${splitting ? " session-unlock-card--exit" : ""}`}>
           <p className="session-unlock-sticker" aria-hidden>
             <span className="session-unlock-sticker-inner">老师专用</span>

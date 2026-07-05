@@ -4,6 +4,7 @@ import { DraftStatusChip } from "@/components/DraftStatusChip";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import Image from "next/image";
 import type { CSSProperties } from "react";
+import { memo } from "react";
 
 type Props = {
   draftSavedAt: number | null;
@@ -14,7 +15,9 @@ type Props = {
   onToggleHistorySidebar: () => void;
 };
 
-export function AppHeader({
+export const AppHeader = memo(AppHeaderInner);
+
+function AppHeaderInner({
   draftSavedAt,
   draftError,
   onClearDraft,

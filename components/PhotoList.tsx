@@ -14,8 +14,8 @@ import { uploadPhotoEntryToStorage } from "@/lib/photos/upload-report-storage";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PhotoPreviewModal } from "@/components/PhotoPreviewModal";
 import { toastHeicImportFailed, toastPhotoRemoved } from "@/lib/user-toast";
-import type { CSSProperties, Dispatch, SetStateAction } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import type { CSSProperties, Dispatch, DragEvent, SetStateAction } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 
 type Props = {
   photos: PhotoEntry[];
@@ -39,7 +39,72 @@ async function deleteRemoteBlob(url: string | null): Promise<void> {
   }
 }
 
-export function PhotoList({ photos, onChange }: Props) {
+type FilmstripThumbProps = {
+  entry: PhotoEntry;
+  isSelected: boolean;
+  isDragging: boolean;
+  onSelect: () => void;
+  onDragStart: (e: DragEvent) => void;
+  onDragEnd: () => void;
+  onDragOver: (e: DragEvent) => void;
+  onDrop: (e: DragEvent) => void;
+};
+
+function PhotoFilmstripThumb({
+  entry,
+  isSelected,
+  isDragging,
+  onSelect,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDrop,
+}: FilmstripThumbProps) {
+  return (
+    <button
+      type="button"
+      role="option"
+      aria-selected={isSelected}
+      draggable
+      className="photo-filmstrip-thumb"
+      title={entry.logicalName}
+      onClick={onSelect}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      style={{
+        opacity: isDragging ? 0.55 : 1,
+        outline: "none",
+      }}
+    >
+      {isHeicLikeFile(entry.file) && !entry.ingestError ? (
+        <HeicThumbPlaceholder />
+      ) : entry.ingestError ? (
+        <HeicThumbPlaceholder error />
+      ) : (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={pickPreviewImageUrl(entry)}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            display: "block",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+    </button>
+  );
+}
+
+const PhotoFilmstripThumbMemo = memo(PhotoFilmstripThumb);
+
+function PhotoListInner({ photos, onChange }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const uploadInFlight = useRef(new Set<string>());
   const heicMigrateInFlight = useRef(new Set<string>());
@@ -355,62 +420,32 @@ export function PhotoList({ photos, onChange }: Props) {
             aria-label="照片缩略图"
             style={filmstripWrap}
           >
-            {photos.map((p, index) => {
-              const isSel = p.id === selectedId;
-              const isDragging = draggingIndex === index;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  role="option"
-                  aria-selected={isSel}
-                  draggable
-                  className="photo-filmstrip-thumb"
-                  title={p.logicalName}
-                  onClick={() => setSelectedId(p.id)}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = "move";
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (draggingIndex !== null) {
-                      reorder(draggingIndex, index);
-                      setDraggingIndex(null);
-                    }
-                  }}
-                  onDragStart={(e) => {
-                    setDraggingIndex(index);
-                    e.dataTransfer.effectAllowed = "move";
-                    e.dataTransfer.setData("text/plain", String(index));
-                  }}
-                  onDragEnd={() => setDraggingIndex(null)}
-                  style={{
-                    opacity: isDragging ? 0.55 : 1,
-                    outline: "none",
-                  }}
-                >
-                  {isHeicLikeFile(p.file) && !p.ingestError ? (
-                    <HeicThumbPlaceholder />
-                  ) : p.ingestError ? (
-                    <HeicThumbPlaceholder error />
-                  ) : (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={pickPreviewImageUrl(p)}
-                      alt=""
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                        display: "block",
-                        pointerEvents: "none",
-                      }}
-                    />
-                  )}
-                </button>
-              );
-            })}
+            {photos.map((p, index) => (
+              <PhotoFilmstripThumbMemo
+                key={p.id}
+                entry={p}
+                isSelected={p.id === selectedId}
+                isDragging={draggingIndex === index}
+                onSelect={() => setSelectedId(p.id)}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (draggingIndex !== null) {
+                    reorder(draggingIndex, index);
+                    setDraggingIndex(null);
+                  }
+                }}
+                onDragStart={(e) => {
+                  setDraggingIndex(index);
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("text/plain", String(index));
+                }}
+                onDragEnd={() => setDraggingIndex(null)}
+              />
+            ))}
           </div>
 
           {selected && selectedIndex >= 0 ? (
@@ -545,6 +580,8 @@ export function PhotoList({ photos, onChange }: Props) {
     </div>
   );
 }
+
+export const PhotoList = memo(PhotoListInner);
 
 const filmstripWrap: CSSProperties = {
   display: "flex",

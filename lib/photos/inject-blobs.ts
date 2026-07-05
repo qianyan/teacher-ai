@@ -25,6 +25,23 @@ export type PhotoEntry = {
   ingestError: string | null;
 };
 
+/** Stable signature for preview iframe injection — ignores uploadStatus when URL unchanged. */
+export function photoPreviewSignature(entries: PhotoEntry[]): string {
+  return entries
+    .map((e) => `${e.logicalName}|${pickPreviewImageUrl(e)}`)
+    .join("\n");
+}
+
+/** Stable signature for draft persistence — ignores uploading intermediate state. */
+export function photoPersistSignature(entries: PhotoEntry[]): string {
+  return entries
+    .map(
+      (e) =>
+        `${e.id}|${e.logicalName}|${e.file.size}|${e.file.lastModified}|${e.remoteUrl ?? ""}|${e.uploadGeneration}|${e.uploadError ?? ""}`,
+    )
+    .join("\n");
+}
+
 /** Prefer synced HTTPS URL when the stored file is not HEIC (legacy drafts may still carry HEIC bytes briefly). */
 export function pickPreviewImageUrl(e: PhotoEntry): string {
   if (e.remoteUrl && !isHeicLikeFile(e.file)) {

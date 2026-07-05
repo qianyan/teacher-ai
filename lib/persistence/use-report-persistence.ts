@@ -1,7 +1,8 @@
 "use client";
 
 import type { PhotoEntry } from "@/lib/photos/inject-blobs";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { photoPersistSignature } from "@/lib/photos/inject-blobs";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   hydrateStateFromSnapshot,
   revokePhotoEntryBlobUrls,
@@ -20,7 +21,8 @@ import {
 import { snapshotFromState } from "./serialize";
 import type { HistoryRecord, HydratedEditorState } from "./types";
 
-const DEBOUNCE_MS = 1000;
+const TEXT_DEBOUNCE_MS = 1000;
+const PHOTO_DEBOUNCE_MS = 2500;
 
 export type UseReportPersistenceParams = {
   biweeklyDateRange: string;
@@ -94,6 +96,8 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
     setFullHtml,
   };
 
+  const photoSig = useMemo(() => photoPersistSignature(photos), [photos]);
+
   const applyHydratedState = useCallback((h: HydratedEditorState) => {
     const s = settersRef.current;
     s.setBiweeklyDateRange(h.biweeklyDateRange);
@@ -104,18 +108,37 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
     s.setPhotos(h.photos);
   }, []);
 
+  const persistDraft = useCallback(async () => {
+    try {
+      const snap = snapshotFromState(stateRef.current);
+      await putDraft(snap);
+      setDraftSavedAt(Date.now());
+      setDraftError(null);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "草稿保存失败";
+      const quota =
+        e instanceof DOMException && e.name === "QuotaExceededError"
+          ? "浏览器存储空间不足，请删除部分历史记录或缩小图片。"
+          : msg;
+      setDraftError(quota);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        const draft = await getDraft();
+        const [draft, historyRows] = await Promise.all([
+          getDraft(),
+          listHistoryRemote(),
+        ]);
         if (cancelled) return;
         if (draft?.snapshot) {
           const h = hydrateStateFromSnapshot(draft.snapshot);
           applyHydratedState(h);
           setDraftSavedAt(draft.updatedAt);
         }
-        setHistory(await listHistoryRemote());
+        setHistory(historyRows);
       } catch (e) {
         console.error(e);
         setDraftError(e instanceof Error ? e.message : "加载草稿失败");
@@ -131,23 +154,8 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
   useEffect(() => {
     if (isHydrating) return;
     const t = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const snap = snapshotFromState(stateRef.current);
-          await putDraft(snap);
-          setDraftSavedAt(Date.now());
-          setDraftError(null);
-        } catch (e) {
-          const msg =
-            e instanceof Error ? e.message : "草稿保存失败";
-          const quota =
-            e instanceof DOMException && e.name === "QuotaExceededError"
-              ? "浏览器存储空间不足，请删除部分历史记录或缩小图片。"
-              : msg;
-          setDraftError(quota);
-        }
-      })();
-    }, DEBOUNCE_MS);
+      void persistDraft();
+    }, TEXT_DEBOUNCE_MS);
     return () => window.clearTimeout(t);
   }, [
     isHydrating,
@@ -155,23 +163,26 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
     subTitle,
     introHtml,
     bodyHtml,
-    photos,
-    fullHtml,
+    persistDraft,
   ]);
+
+  useEffect(() => {
+    if (isHydrating) return;
+    const t = window.setTimeout(() => {
+      void persistDraft();
+    }, PHOTO_DEBOUNCE_MS);
+    return () => window.clearTimeout(t);
+  }, [isHydrating, photoSig, persistDraft]);
+
+  useEffect(() => {
+    if (isHydrating || fullHtml === null) return;
+    void persistDraft();
+  }, [isHydrating, fullHtml, persistDraft]);
 
   const flushDraft = useCallback(() => {
     if (isHydrating) return;
-    void (async () => {
-      try {
-        const snap = snapshotFromState(stateRef.current);
-        await putDraft(snap);
-        setDraftSavedAt(Date.now());
-        setDraftError(null);
-      } catch {
-        /* best-effort */
-      }
-    })();
-  }, [isHydrating]);
+    void persistDraft();
+  }, [isHydrating, persistDraft]);
 
   useEffect(() => {
     const onHidden = () => {

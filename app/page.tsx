@@ -1,9 +1,7 @@
 "use client";
 
 import { AppHeader } from "@/components/AppHeader";
-import { HistorySidebar } from "@/components/HistorySidebar";
 import { PhotoList } from "@/components/PhotoList";
-import { PreviewPanel } from "@/components/PreviewPanel";
 import { RichEditor } from "@/components/RichEditor";
 import { SessionUnlock } from "@/components/SessionUnlock";
 import {
@@ -25,7 +23,24 @@ import {
   toastHistoryDeleteFailed,
   toastHistoryDeleted,
 } from "@/lib/user-toast";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
+
+const PreviewPanel = dynamic(
+  () =>
+    import("@/components/PreviewPanel").then((m) => ({
+      default: m.PreviewPanel,
+    })),
+  { ssr: false },
+);
+
+const HistorySidebar = dynamic(
+  () =>
+    import("@/components/HistorySidebar").then((m) => ({
+      default: m.HistorySidebar,
+    })),
+  { ssr: false },
+);
 
 export default function HomePage() {
   const defaultHydratedState = useMemo(
@@ -152,6 +167,35 @@ export default function HomePage() {
     [loadHistoryEntry],
   );
 
+  const handleClearDraft = useCallback(async () => {
+    try {
+      await clearDraftAndReset();
+      toastDraftCleared();
+    } catch (e) {
+      toastDraftClearFailed(e);
+    }
+  }, [clearDraftAndReset]);
+
+  const handleDeleteHistory = useCallback(
+    async (id: string) => {
+      try {
+        await deleteHistoryEntry(id);
+        toastHistoryDeleted();
+      } catch (e) {
+        toastHistoryDeleteFailed(e);
+      }
+    },
+    [deleteHistoryEntry],
+  );
+
+  const handleToggleHistorySidebar = useCallback(() => {
+    setHistorySidebarOpen((o) => !o);
+  }, []);
+
+  const handleCloseHistorySidebar = useCallback(() => {
+    setHistorySidebarOpen(false);
+  }, []);
+
   if (isHydrating) {
     return (
       <SessionUnlock>
@@ -173,35 +217,21 @@ export default function HomePage() {
         <AppHeader
           draftSavedAt={draftSavedAt}
           draftError={draftError}
-          onClearDraft={async () => {
-            try {
-              await clearDraftAndReset();
-              toastDraftCleared();
-            } catch (e) {
-              toastDraftClearFailed(e);
-            }
-          }}
+          onClearDraft={handleClearDraft}
           historyCount={history.length}
           historySidebarOpen={historySidebarOpen}
-          onToggleHistorySidebar={() =>
-            setHistorySidebarOpen((o) => !o)
-          }
+          onToggleHistorySidebar={handleToggleHistorySidebar}
         />
 
-        <HistorySidebar
-          open={historySidebarOpen}
-          onClose={() => setHistorySidebarOpen(false)}
-          history={history}
-          onRestore={handleRestoreHistory}
-          onDelete={async (id) => {
-            try {
-              await deleteHistoryEntry(id);
-              toastHistoryDeleted();
-            } catch (e) {
-              toastHistoryDeleteFailed(e);
-            }
-          }}
-        />
+        {historySidebarOpen && (
+          <HistorySidebar
+            open={historySidebarOpen}
+            onClose={handleCloseHistorySidebar}
+            history={history}
+            onRestore={handleRestoreHistory}
+            onDelete={handleDeleteHistory}
+          />
+        )}
 
         <div className="app-grid app-grid--main">
           <div className="app-stack-col" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
