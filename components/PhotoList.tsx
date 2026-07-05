@@ -1,10 +1,9 @@
 "use client";
 
 import type { PhotoEntry } from "@/lib/photos/inject-blobs";
-import {
-  logicalKeyFromFilename,
-  pickPreviewImageUrl,
-} from "@/lib/photos/inject-blobs";
+import { logicalKeyFromFilename } from "@/lib/photos/inject-blobs";
+import { pickFullscreenPreviewUrl } from "@/lib/photos/preview-thumbnail";
+import { usePhotoPreviewCache } from "@/lib/photos/use-photo-preview-cache";
 import {
   decodeHeicLikeToPngBlobFromEntry,
   isHeicLikeFile,
@@ -14,12 +13,30 @@ import { uploadPhotoEntryToStorage } from "@/lib/photos/upload-report-storage";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PhotoPreviewModal } from "@/components/PhotoPreviewModal";
 import { toastHeicImportFailed, toastPhotoRemoved } from "@/lib/user-toast";
-import type { CSSProperties, Dispatch, DragEvent, SetStateAction } from "react";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import type { CSSProperties, Dispatch, DragEvent, MouseEvent, SetStateAction } from "react";
+import {
+  memo,
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from "react";
 
 type Props = {
   photos: PhotoEntry[];
   onChange: Dispatch<SetStateAction<PhotoEntry[]>>;
+};
+
+type FilmstripItem = {
+  id: string;
+  index: number;
+  logicalName: string;
+  thumbUrl: string | null;
+  loading: boolean;
+  placeholderKind: "heic" | "error" | null;
 };
 
 function newId(): string {
@@ -40,21 +57,31 @@ async function deleteRemoteBlob(url: string | null): Promise<void> {
 }
 
 type FilmstripThumbProps = {
-  entry: PhotoEntry;
+  photoId: string;
+  index: number;
+  logicalName: string;
+  thumbUrl: string | null;
+  loading: boolean;
+  placeholderKind: "heic" | "error" | null;
   isSelected: boolean;
   isDragging: boolean;
-  onSelect: () => void;
-  onDragStart: (e: DragEvent) => void;
+  onThumbClick: (e: MouseEvent<HTMLButtonElement>) => void;
+  onDragStart: (e: DragEvent<HTMLButtonElement>) => void;
   onDragEnd: () => void;
-  onDragOver: (e: DragEvent) => void;
-  onDrop: (e: DragEvent) => void;
+  onDragOver: (e: DragEvent<HTMLButtonElement>) => void;
+  onDrop: (e: DragEvent<HTMLButtonElement>) => void;
 };
 
 function PhotoFilmstripThumb({
-  entry,
+  photoId,
+  index,
+  logicalName,
+  thumbUrl,
+  loading,
+  placeholderKind,
   isSelected,
   isDragging,
-  onSelect,
+  onThumbClick,
   onDragStart,
   onDragEnd,
   onDragOver,
@@ -67,8 +94,10 @@ function PhotoFilmstripThumb({
       aria-selected={isSelected}
       draggable
       className="photo-filmstrip-thumb"
-      title={entry.logicalName}
-      onClick={onSelect}
+      title={logicalName}
+      data-photo-id={photoId}
+      data-photo-index={index}
+      onClick={onThumbClick}
       onDragOver={onDragOver}
       onDrop={onDrop}
       onDragStart={onDragStart}
@@ -78,17 +107,20 @@ function PhotoFilmstripThumb({
         outline: "none",
       }}
     >
-      {isHeicLikeFile(entry.file) && !entry.ingestError ? (
+      {placeholderKind === "heic" ? (
         <HeicThumbPlaceholder />
-      ) : entry.ingestError ? (
+      ) : placeholderKind === "error" ? (
         <HeicThumbPlaceholder error />
+      ) : loading || !thumbUrl ? (
+        <span className="photo-thumb-skeleton" aria-hidden />
       ) : (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img
-          src={pickPreviewImageUrl(entry)}
+          src={thumbUrl}
           alt=""
           loading="lazy"
           decoding="async"
+          draggable={false}
           style={{
             width: "100%",
             height: "100%",
@@ -104,15 +136,286 @@ function PhotoFilmstripThumb({
 
 const PhotoFilmstripThumbMemo = memo(PhotoFilmstripThumb);
 
-function PhotoListInner({ photos, onChange }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const uploadInFlight = useRef(new Set<string>());
-  const heicMigrateInFlight = useRef(new Set<string>());
-  const [importBusy, setImportBusy] = useState(false);
-  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+type PhotoFilmstripProps = {
+  items: FilmstripItem[];
+  selectedId: string | null;
+  draggingIndex: number | null;
+  onSelectId: (id: string) => void;
+  onReorder: (from: number, to: number) => void;
+  onDraggingIndexChange: (index: number | null) => void;
+};
+
+const PhotoFilmstrip = memo(function PhotoFilmstrip({
+  items,
+  selectedId,
+  draggingIndex,
+  onSelectId,
+  onReorder,
+  onDraggingIndexChange,
+}: PhotoFilmstripProps) {
+  const draggingRef = useRef(draggingIndex);
+  draggingRef.current = draggingIndex;
+
+  const handleThumbClick = useCallback(
+    (e: MouseEvent<HTMLButtonElement>) => {
+      const id = e.currentTarget.dataset.photoId;
+      if (id) onSelectId(id);
+    },
+    [onSelectId],
+  );
+
+  const handleDragStart = useCallback(
+    (e: DragEvent<HTMLButtonElement>) => {
+      const index = Number(e.currentTarget.dataset.photoIndex);
+      if (Number.isNaN(index)) return;
+      onDraggingIndexChange(index);
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", String(index));
+    },
+    [onDraggingIndexChange],
+  );
+
+  const handleDragOver = useCallback((e: DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: DragEvent<HTMLButtonElement>) => {
+      e.preventDefault();
+      const toIndex = Number(e.currentTarget.dataset.photoIndex);
+      const fromIndex = draggingRef.current;
+      if (fromIndex !== null && !Number.isNaN(toIndex)) {
+        onReorder(fromIndex, toIndex);
+      }
+      onDraggingIndexChange(null);
+    },
+    [onReorder, onDraggingIndexChange],
+  );
+
+  const handleDragEnd = useCallback(() => {
+    onDraggingIndexChange(null);
+  }, [onDraggingIndexChange]);
+
+  return (
+    <div
+      className="photo-filmstrip"
+      role="listbox"
+      aria-label="照片缩略图"
+      style={filmstripWrap}
+    >
+      {items.map((item) => (
+        <PhotoFilmstripThumbMemo
+          key={item.id}
+          photoId={item.id}
+          index={item.index}
+          logicalName={item.logicalName}
+          thumbUrl={item.thumbUrl}
+          loading={item.loading}
+          placeholderKind={item.placeholderKind}
+          isSelected={item.id === selectedId}
+          isDragging={draggingIndex === item.index}
+          onThumbClick={handleThumbClick}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+        />
+      ))}
+    </div>
+  );
+});
+
+type PhotoStagePreviewProps = {
+  selected: PhotoEntry;
+  stageUrl: string | null;
+  loading: boolean;
+  onFullscreen: () => void;
+};
+
+const PhotoStagePreview = memo(function PhotoStagePreview({
+  selected,
+  stageUrl,
+  loading,
+  onFullscreen,
+}: PhotoStagePreviewProps) {
+  return (
+    <div className="photo-preview-stage">
+      {isHeicLikeFile(selected.file) ? (
+        <HeicPreviewPlaceholder minHeight={160} errorMessage={selected.ingestError} />
+      ) : loading || !stageUrl ? (
+        <div
+          className="photo-stage-skeleton"
+          style={{ minHeight: 160, maxHeight: "min(38vh, 320px)" }}
+          aria-hidden
+        />
+      ) : (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={stageUrl}
+          alt={selected.logicalName}
+          decoding="async"
+          onDoubleClick={() => !selected.ingestError && onFullscreen()}
+          style={{
+            width: "100%",
+            maxHeight: "min(38vh, 320px)",
+            minHeight: 160,
+            objectFit: "contain",
+            borderRadius: "var(--radius-sm)",
+            background: "var(--bg)",
+            cursor: !selected.ingestError ? "zoom-in" : "default",
+          }}
+        />
+      )}
+      {selected.ingestError && !isHeicLikeFile(selected.file) ? (
+        <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--danger)" }}>
+          {selected.ingestError}
+        </p>
+      ) : null}
+      <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          className="btn btn--secondary"
+          style={{ fontSize: 13, padding: "6px 12px" }}
+          disabled={isHeicLikeFile(selected.file) || !!selected.ingestError}
+          onClick={onFullscreen}
+        >
+          全屏预览
+        </button>
+      </div>
+    </div>
+  );
+});
+
+type PhotoDetailPanelProps = {
+  photo: PhotoEntry;
+  index: number;
+  photoCount: number;
+  onChange: Dispatch<SetStateAction<PhotoEntry[]>>;
+  uploadInFlight: MutableRefObject<Set<string>>;
+  onMove: (index: number, dir: -1 | 1) => void;
+  onDeleteRequest: (photo: PhotoEntry) => void;
+};
+
+const PhotoDetailPanel = memo(function PhotoDetailPanel({
+  photo,
+  index,
+  photoCount,
+  onChange,
+  uploadInFlight,
+  onMove,
+  onDeleteRequest,
+}: PhotoDetailPanelProps) {
+  const key = logicalKeyFromFilename(photo.logicalName);
+
+  return (
+    <div
+      style={{
+        marginTop: 14,
+        padding: "14px",
+        borderRadius: "var(--radius-sm)",
+        border: "1px solid var(--border)",
+        background: "var(--panel-elevated)",
+      }}
+    >
+      <input
+        type="text"
+        value={photo.logicalName}
+        onChange={(e) => {
+          const name = e.target.value;
+          onChange((prev) =>
+            prev.map((x) => {
+              if (x.id !== photo.id) return x;
+              if (name === x.logicalName) return x;
+              void deleteRemoteBlob(x.remoteUrl);
+              uploadInFlight.current.delete(x.id);
+              return {
+                ...x,
+                logicalName: name,
+                remoteUrl: null,
+                remotePathname: null,
+                uploadStatus: "pending",
+                uploadError: null,
+                uploadGeneration: x.uploadGeneration + 1,
+              };
+            }),
+          );
+        }}
+        className="app-input"
+        style={{ marginBottom: 8 }}
+        spellCheck={false}
+      />
+      <div
+        style={{
+          fontSize: 12,
+          color: key ? "var(--success)" : "var(--danger)",
+          marginBottom: 6,
+        }}
+      >
+        {key
+          ? `映射: data-report-photo="${key}"`
+          : "无法解析前缀+序号，请改为如 特色游戏1.jpg"}
+      </div>
+      <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>
+        {photo.uploadStatus === "pending" && "Blob：排队上传…"}
+        {photo.uploadStatus === "uploading" && "Blob：上传中…"}
+        {photo.uploadStatus === "synced" && photo.remoteUrl && "Blob：已同步"}
+        {photo.uploadStatus === "error" && (
+          <span style={{ color: "var(--danger)" }}>
+            Blob：{photo.uploadError || "同步失败"}
+          </span>
+        )}
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          style={smallBtn}
+          disabled={index === 0}
+          onClick={() => onMove(index, -1)}
+        >
+          上移
+        </button>
+        <button
+          type="button"
+          style={smallBtn}
+          disabled={index === photoCount - 1}
+          onClick={() => onMove(index, 1)}
+        >
+          下移
+        </button>
+        <button
+          type="button"
+          style={{ ...smallBtn, color: "var(--danger)" }}
+          onClick={() => onDeleteRequest(photo)}
+        >
+          删除
+        </button>
+      </div>
+    </div>
+  );
+});
+
+type PhotoGalleryProps = {
+  photos: PhotoEntry[];
+  onChange: Dispatch<SetStateAction<PhotoEntry[]>>;
+  uploadInFlight: MutableRefObject<Set<string>>;
+  pendingSelectId: string | null;
+  onPendingSelectConsumed: () => void;
+};
+
+function PhotoGalleryInner({
+  photos,
+  onChange,
+  uploadInFlight,
+  pendingSelectId,
+  onPendingSelectConsumed,
+}: PhotoGalleryProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [fullscreenEntry, setFullscreenEntry] = useState<PhotoEntry | null>(null);
   const [photoDeleteTarget, setPhotoDeleteTarget] = useState<PhotoEntry | null>(null);
+
+  const { getPreviewUrls, previewRevision } = usePhotoPreviewCache(photos);
 
   useEffect(() => {
     if (photos.length === 0) {
@@ -120,12 +423,152 @@ function PhotoListInner({ photos, onChange }: Props) {
       return;
     }
     setSelectedId((prev) =>
-      prev && photos.some((p) => p.id === prev) ? prev : photos[0].id,
+      prev && photos.some((p) => p.id === prev) ? prev : photos[0]!.id,
     );
   }, [photos]);
 
+  useEffect(() => {
+    if (!pendingSelectId) return;
+    if (photos.some((p) => p.id === pendingSelectId)) {
+      setSelectedId(pendingSelectId);
+    }
+    onPendingSelectConsumed();
+  }, [pendingSelectId, photos, onPendingSelectConsumed]);
+
+  const handleSelectId = useCallback((id: string) => {
+    startTransition(() => setSelectedId(id));
+  }, []);
+
   const selectedIndex = photos.findIndex((p) => p.id === selectedId);
-  const selected = selectedIndex >= 0 ? photos[selectedIndex] : null;
+  const selected = selectedIndex >= 0 ? photos[selectedIndex]! : null;
+  const selectedPreview = selected ? getPreviewUrls(selected) : null;
+
+  const filmstripItems = useMemo((): FilmstripItem[] => {
+    void previewRevision;
+    return photos.map((p, index) => {
+      const preview = getPreviewUrls(p);
+      return {
+        id: p.id,
+        index,
+        logicalName: p.logicalName,
+        thumbUrl: preview.thumbUrl,
+        loading: preview.loading,
+        placeholderKind: p.ingestError
+          ? "error"
+          : isHeicLikeFile(p.file)
+            ? "heic"
+            : null,
+      };
+    });
+  }, [photos, previewRevision, getPreviewUrls]);
+
+  const move = useCallback(
+    (index: number, dir: -1 | 1) => {
+      const j = index + dir;
+      if (j < 0 || j >= photos.length) return;
+      const next = [...photos];
+      [next[index], next[j]] = [next[j]!, next[index]!];
+      onChange(next);
+    },
+    [photos, onChange],
+  );
+
+  const reorder = useCallback(
+    (from: number, to: number) => {
+      if (from === to || from < 0 || to < 0) return;
+      if (from >= photos.length || to >= photos.length) return;
+      const next = [...photos];
+      const [item] = next.splice(from, 1);
+      next.splice(to, 0, item!);
+      onChange(next);
+    },
+    [photos, onChange],
+  );
+
+  const handleFullscreen = useCallback(() => {
+    if (selected && !selected.ingestError && !isHeicLikeFile(selected.file)) {
+      setFullscreenEntry(selected);
+    }
+  }, [selected]);
+
+  return (
+    <>
+      {selected && selectedPreview ? (
+        <PhotoStagePreview
+          selected={selected}
+          stageUrl={selectedPreview.stageUrl}
+          loading={selectedPreview.loading}
+          onFullscreen={handleFullscreen}
+        />
+      ) : null}
+
+      <PhotoFilmstrip
+        items={filmstripItems}
+        selectedId={selectedId}
+        draggingIndex={draggingIndex}
+        onSelectId={handleSelectId}
+        onReorder={reorder}
+        onDraggingIndexChange={setDraggingIndex}
+      />
+
+      {selected && selectedIndex >= 0 ? (
+        <PhotoDetailPanel
+          photo={selected}
+          index={selectedIndex}
+          photoCount={photos.length}
+          onChange={onChange}
+          uploadInFlight={uploadInFlight}
+          onMove={move}
+          onDeleteRequest={setPhotoDeleteTarget}
+        />
+      ) : null}
+
+      <ConfirmDialog
+        open={photoDeleteTarget !== null}
+        title="删除这张照片？"
+        description={
+          photoDeleteTarget
+            ? `将从列表移除「${photoDeleteTarget.logicalName}」，若已同步到 Blob 会尝试删除远端文件。`
+            : undefined
+        }
+        confirmLabel="删除"
+        tone="danger"
+        onCancel={() => setPhotoDeleteTarget(null)}
+        onConfirm={() => {
+          const p = photoDeleteTarget;
+          if (!p) return;
+          void deleteRemoteBlob(p.remoteUrl);
+          uploadInFlight.current.delete(p.id);
+          URL.revokeObjectURL(p.blobUrl);
+          onChange((prev) => prev.filter((x) => x.id !== p.id));
+          toastPhotoRemoved(p.logicalName);
+          setPhotoDeleteTarget(null);
+        }}
+      />
+
+      {fullscreenEntry &&
+        !isHeicLikeFile(fullscreenEntry.file) &&
+        !fullscreenEntry.ingestError && (
+          <PhotoPreviewModal
+            imageUrl={pickFullscreenPreviewUrl(fullscreenEntry)}
+            fileName={fullscreenEntry.logicalName}
+            onClose={() => setFullscreenEntry(null)}
+          />
+        )}
+    </>
+  );
+}
+
+const PhotoGallery = memo(PhotoGalleryInner);
+
+function PhotoListInner({ photos, onChange }: Props) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const uploadInFlight = useRef(new Set<string>());
+  const heicMigrateInFlight = useRef(new Set<string>());
+  const [importBusy, setImportBusy] = useState(false);
+  const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
+
+  const clearPendingSelect = useCallback(() => setPendingSelectId(null), []);
 
   const addFiles = useCallback(
     async (files: readonly File[]) => {
@@ -157,7 +600,7 @@ function PhotoListInner({ photos, onChange }: Props) {
       }
       if (firstNewId) {
         onChange(next);
-        setSelectedId(firstNewId);
+        setPendingSelectId(firstNewId);
       }
     },
     [photos, onChange],
@@ -283,23 +726,6 @@ function PhotoListInner({ photos, onChange }: Props) {
     }
   }, [photos, onChange]);
 
-  const move = (index: number, dir: -1 | 1) => {
-    const j = index + dir;
-    if (j < 0 || j >= photos.length) return;
-    const next = [...photos];
-    [next[index], next[j]] = [next[j], next[index]];
-    onChange(next);
-  };
-
-  const reorder = (from: number, to: number) => {
-    if (from === to || from < 0 || to < 0) return;
-    if (from >= photos.length || to >= photos.length) return;
-    const next = [...photos];
-    const [item] = next.splice(from, 1);
-    next.splice(to, 0, item);
-    onChange(next);
-  };
-
   return (
     <div style={{ marginBottom: 16 }}>
       <div
@@ -329,7 +755,6 @@ function PhotoListInner({ photos, onChange }: Props) {
           multiple
           hidden
           onChange={(e) => {
-            // FileList is live: clearing input value empties it; snapshot before reset.
             const files = e.target.files ? Array.from(e.target.files) : [];
             e.target.value = "";
             void (async () => {
@@ -353,230 +778,14 @@ function PhotoListInner({ photos, onChange }: Props) {
           尚未添加照片
         </p>
       ) : (
-        <>
-          <div className="photo-preview-stage">
-            {selected ? (
-              <>
-                {isHeicLikeFile(selected.file) ? (
-                  <HeicPreviewPlaceholder
-                    minHeight={160}
-                    errorMessage={selected.ingestError}
-                  />
-                ) : (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={pickPreviewImageUrl(selected)}
-                    alt={selected.logicalName}
-                    onDoubleClick={() =>
-                      !selected.ingestError && setFullscreenEntry(selected)
-                    }
-                    style={{
-                      width: "100%",
-                      maxHeight: "min(38vh, 320px)",
-                      minHeight: 160,
-                      objectFit: "contain",
-                      borderRadius: "var(--radius-sm)",
-                      background: "var(--bg)",
-                      cursor: !selected.ingestError ? "zoom-in" : "default",
-                    }}
-                  />
-                )}
-                {selected.ingestError && !isHeicLikeFile(selected.file) ? (
-                  <p
-                    style={{
-                      margin: "8px 0 0",
-                      fontSize: 13,
-                      color: "var(--danger)",
-                    }}
-                  >
-                    {selected.ingestError}
-                  </p>
-                ) : null}
-                <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                  <button
-                    type="button"
-                    className="btn btn--secondary"
-                    style={{ fontSize: 13, padding: "6px 12px" }}
-                    disabled={isHeicLikeFile(selected.file) || !!selected.ingestError}
-                    title={
-                      isHeicLikeFile(selected.file)
-                        ? "HEIC 正在转为 PNG，请稍候"
-                        : selected.ingestError
-                          ? "请先处理照片错误"
-                          : undefined
-                    }
-                    onClick={() => setFullscreenEntry(selected)}
-                  >
-                    全屏预览
-                  </button>
-                </div>
-              </>
-            ) : null}
-          </div>
-
-          <div
-            className="photo-filmstrip"
-            role="listbox"
-            aria-label="照片缩略图"
-            style={filmstripWrap}
-          >
-            {photos.map((p, index) => (
-              <PhotoFilmstripThumbMemo
-                key={p.id}
-                entry={p}
-                isSelected={p.id === selectedId}
-                isDragging={draggingIndex === index}
-                onSelect={() => setSelectedId(p.id)}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = "move";
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (draggingIndex !== null) {
-                    reorder(draggingIndex, index);
-                    setDraggingIndex(null);
-                  }
-                }}
-                onDragStart={(e) => {
-                  setDraggingIndex(index);
-                  e.dataTransfer.effectAllowed = "move";
-                  e.dataTransfer.setData("text/plain", String(index));
-                }}
-                onDragEnd={() => setDraggingIndex(null)}
-              />
-            ))}
-          </div>
-
-          {selected && selectedIndex >= 0 ? (
-            <div
-              style={{
-                marginTop: 14,
-                padding: "14px",
-                borderRadius: "var(--radius-sm)",
-                border: "1px solid var(--border)",
-                background: "var(--panel-elevated)",
-              }}
-            >
-              {(() => {
-                const p = selected;
-                const index = selectedIndex;
-                const key = logicalKeyFromFilename(p.logicalName);
-                return (
-                  <>
-                    <input
-                      type="text"
-                      value={p.logicalName}
-                      onChange={(e) => {
-                        const name = e.target.value;
-                        onChange(
-                          photos.map((x) => {
-                            if (x.id !== p.id) return x;
-                            if (name === x.logicalName) return x;
-                            void deleteRemoteBlob(x.remoteUrl);
-                            uploadInFlight.current.delete(x.id);
-                            return {
-                              ...x,
-                              logicalName: name,
-                              remoteUrl: null,
-                              remotePathname: null,
-                              uploadStatus: "pending",
-                              uploadError: null,
-                              uploadGeneration: x.uploadGeneration + 1,
-                            };
-                          }),
-                        );
-                      }}
-                      className="app-input"
-                      style={{ marginBottom: 8 }}
-                      spellCheck={false}
-                    />
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: key ? "var(--success)" : "var(--danger)",
-                        marginBottom: 6,
-                      }}
-                    >
-                      {key
-                        ? `映射: data-report-photo="${key}"`
-                        : "无法解析前缀+序号，请改为如 特色游戏1.jpg"}
-                    </div>
-                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>
-                      {p.uploadStatus === "pending" && "Blob：排队上传…"}
-                      {p.uploadStatus === "uploading" && "Blob：上传中…"}
-                      {p.uploadStatus === "synced" && p.remoteUrl && "Blob：已同步"}
-                      {p.uploadStatus === "error" && (
-                        <span style={{ color: "var(--danger)" }}>
-                          Blob：{p.uploadError || "同步失败"}
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button
-                        type="button"
-                        style={smallBtn}
-                        disabled={index === 0}
-                        onClick={() => move(index, -1)}
-                      >
-                        上移
-                      </button>
-                      <button
-                        type="button"
-                        style={smallBtn}
-                        disabled={index === photos.length - 1}
-                        onClick={() => move(index, 1)}
-                      >
-                        下移
-                      </button>
-                      <button
-                        type="button"
-                        style={{ ...smallBtn, color: "var(--danger)" }}
-                        onClick={() => setPhotoDeleteTarget(p)}
-                      >
-                        删除
-                      </button>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          ) : null}
-        </>
+        <PhotoGallery
+          photos={photos}
+          onChange={onChange}
+          uploadInFlight={uploadInFlight}
+          pendingSelectId={pendingSelectId}
+          onPendingSelectConsumed={clearPendingSelect}
+        />
       )}
-
-      <ConfirmDialog
-        open={photoDeleteTarget !== null}
-        title="删除这张照片？"
-        description={
-          photoDeleteTarget
-            ? `将从列表移除「${photoDeleteTarget.logicalName}」，若已同步到 Blob 会尝试删除远端文件。`
-            : undefined
-        }
-        confirmLabel="删除"
-        tone="danger"
-        onCancel={() => setPhotoDeleteTarget(null)}
-        onConfirm={() => {
-          const p = photoDeleteTarget;
-          if (!p) return;
-          void deleteRemoteBlob(p.remoteUrl);
-          uploadInFlight.current.delete(p.id);
-          URL.revokeObjectURL(p.blobUrl);
-          onChange((prev) => prev.filter((x) => x.id !== p.id));
-          toastPhotoRemoved(p.logicalName);
-          setPhotoDeleteTarget(null);
-        }}
-      />
-
-      {fullscreenEntry &&
-        !isHeicLikeFile(fullscreenEntry.file) &&
-        !fullscreenEntry.ingestError && (
-          <PhotoPreviewModal
-            imageUrl={pickPreviewImageUrl(fullscreenEntry)}
-            fileName={fullscreenEntry.logicalName}
-            onClose={() => setFullscreenEntry(null)}
-          />
-        )}
     </div>
   );
 }

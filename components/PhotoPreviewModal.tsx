@@ -11,10 +11,15 @@ type Props = {
 
 export function PhotoPreviewModal({ imageUrl, fileName, onClose }: Props) {
   const [mounted, setMounted] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    setLoaded(false);
+  }, [imageUrl]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -31,31 +36,24 @@ export function PhotoPreviewModal({ imageUrl, fileName, onClose }: Props) {
       role="dialog"
       aria-modal
       aria-label="照片全屏预览"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 25000,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-        background: "rgba(0, 0, 0, 0.55)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
-      }}
+      className="photo-preview-modal"
       onClick={onClose}
     >
       <div
+        className="photo-preview-modal__frame"
         onClick={(e) => e.stopPropagation()}
-        style={{
-          maxWidth: "96vw",
-          maxHeight: "96vh",
-        }}
       >
+        {!loaded && (
+          <div className="photo-preview-modal__loading" aria-hidden>
+            <span className="photo-stage-skeleton photo-preview-modal__spinner" />
+          </div>
+        )}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imageUrl}
           alt={fileName}
+          decoding="async"
+          onLoad={() => setLoaded(true)}
           style={{
             maxWidth: "96vw",
             maxHeight: "96vh",
@@ -64,7 +62,7 @@ export function PhotoPreviewModal({ imageUrl, fileName, onClose }: Props) {
             objectFit: "contain",
             borderRadius: 8,
             boxShadow: "var(--shadow-md)",
-            display: "block",
+            display: loaded ? "block" : "none",
           }}
         />
       </div>
