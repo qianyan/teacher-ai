@@ -16,12 +16,14 @@ description: Chinese toddler class biweekly newsletter (托班两周周报). The
 
 ### Available themes (`templateId`)
 
-| ID | Name | Shell path |
-|----|------|------------|
-| `cream-soft` | 奶油柔和 | `lib/report/templates/cream-soft/shell.html` |
-| `ocean-fresh` | 清新海洋蓝 | `lib/report/templates/ocean-fresh/shell.html` |
+| ID | Name | Layout | Shell path |
+|----|------|--------|------------|
+| `cream-soft` | 奶油柔和 | 经典卡片 | `lib/report/templates/cream-soft/shell.html` |
+| `ocean-fresh` | 清新海洋蓝 | 经典卡片 | `lib/report/templates/ocean-fresh/shell.html` |
+| `garden-story` | 自然绘本 | 绘本折页（左右交替 + 圆形/水滴/叶片相框） | `lib/report/templates/garden-story/shell.html` |
+| `candy-pop` | 糖果乐园 | 糖果拼贴（便当格 + 六边形/云朵/胶囊相框） | `lib/report/templates/candy-pop/shell.html` |
 
-All themes share the **same CSS class names and CSS variables** (`--color-red`, `--color-bg`, etc.); only palette and header decorations differ. AI output markup is identical across themes.
+Themes share CSS variables (`--color-red`, `--color-bg`, etc.) for palette; **layout markup differs by theme**. See `lib/report/templates/layout-profiles.ts` and call `get_newsletter_template_html` with the active `templateId` to match section/tips classes.
 
 Full document build (see `lib/report/assemble.ts`):
 
@@ -40,7 +42,7 @@ Strict structure:
 
 **Titles:** use `.section-title` and `.tips-title` (primary accent, `var(--color-red)`; see shell CSS). **Do not** prefix with Chinese ordinals (一、二、…).
 
-**Photos:** do not use `.photo-label`. **Landscape** grids: **6** images → `photo-grid grid-3` (3×2); **8** → `grid-4` (4×2). Other counts: follow the same class rules as in the theme shell.
+**Photos:** do not use `.photo-label`. Use this theme's photo containers and shape classes (see layout profile for `templateId`). Classic themes: **6** images → `photo-grid grid-3`; **8** → `grid-4`. New themes: follow `layout-profiles.ts` (mosaic / bento / editorial strip).
 
 **Photo placeholders (app integration):** use empty `<img>` tags with `data-report-photo="PREFIX:INDEX"`. The prefix is the same text as the photo group name before the index in the logical filename; **INDEX** is the numeric part (e.g. file `探究1.jpg` → `data-report-photo="探究:1"`). The client maps these keys to uploaded blob URLs from `photoLogicalNames`.
 

@@ -31,7 +31,12 @@ export const SKILL_TOOL_DEFINITIONS: ToolDefinition[] = [
         properties: {
           templateId: {
             type: "string",
-            enum: ["cream-soft", "ocean-fresh"],
+            enum: [
+              "cream-soft",
+              "ocean-fresh",
+              "garden-story",
+              "candy-pop",
+            ],
             description:
               "Report theme shell to load. Defaults to cream-soft if omitted.",
           },

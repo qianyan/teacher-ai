@@ -1,10 +1,7 @@
 "use client";
 
 import type { PhotoEntry } from "@/lib/photos/inject-blobs";
-import {
-  REPORT_TEMPLATE_LIST,
-  type ReportTemplateId,
-} from "@/lib/report/templates";
+import { type ReportTemplateId } from "@/lib/report/templates";
 import dynamic from "next/dynamic";
 import {
   memo,
@@ -45,6 +42,17 @@ const PreviewPanel = dynamic(
   {
     ssr: false,
     loading: () => <div className="workbench-skeleton workbench-skeleton--preview" />,
+  },
+);
+
+const TemplatePicker = dynamic(
+  () =>
+    import("@/components/TemplatePicker").then((m) => ({
+      default: m.TemplatePicker,
+    })),
+  {
+    ssr: false,
+    loading: () => <div className="workbench-skeleton workbench-skeleton--template" />,
   },
 );
 
@@ -224,39 +232,11 @@ function ReportWorkbenchInner({
                 像手帐扉页一样先定好双周区间与副标题，后面的撰文和照片都会跟着这一版式走。
               </p>
             </header>
-            <fieldset className="template-picker">
-              <legend className="app-label">周报主题</legend>
-              <div className="template-picker__grid" role="radiogroup" aria-label="周报主题">
-                {REPORT_TEMPLATE_LIST.map((tpl) => {
-                  const selected = tpl.id === templateId;
-                  return (
-                    <button
-                      key={tpl.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      className={`template-card${selected ? " is-selected" : ""}`}
-                      onClick={() => handleTemplateChange(tpl.id)}
-                    >
-                      <span
-                        className="template-card__swatch"
-                        aria-hidden
-                        style={{
-                          background: `linear-gradient(135deg, ${tpl.preview.bg} 0%, ${tpl.preview.bg} 40%, ${tpl.preview.primary} 40%, ${tpl.preview.primary} 70%, ${tpl.preview.accent} 70%)`,
-                        }}
-                      />
-                      <span className="template-card__body">
-                        <span className="template-card__name">{tpl.name}</span>
-                        <span className="template-card__desc">{tpl.description}</span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
-            {templateSwitchHint && (
-              <p className="workbench-hint workbench-hint--warn">{templateSwitchHint}</p>
-            )}
+            <TemplatePicker
+              templateId={templateId}
+              onTemplateChange={handleTemplateChange}
+              switchHint={templateSwitchHint}
+            />
             <label className="app-label" htmlFor="english-class-name">
               英文班级名（大标题，如 Infant D）
             </label>
