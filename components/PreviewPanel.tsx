@@ -1,5 +1,6 @@
 "use client";
 
+import { ReportPreviewIframe } from "@/components/ReportPreviewIframe";
 import { captureIframeDocumentAsPngBlob } from "@/lib/photos/capture-iframe-png";
 import {
   allPhotosPreviewReady,
@@ -208,19 +209,7 @@ function PreviewPanelInner({ fullHtml, photos }: Props) {
         <div style={frameChrome} aria-hidden />
         <div className="preview-scroll-well">
           {srcDoc ? (
-            <iframe
-              ref={iframeRef}
-              title="preview"
-              srcDoc={srcDoc}
-              style={{
-                width: 1080,
-                minHeight: 400,
-                border: "none",
-                display: "block",
-                margin: "0 auto",
-                background: "#fff",
-              }}
-            />
+            <ReportPreviewIframe ref={iframeRef} srcDoc={srcDoc} title="preview" />
           ) : (
             <div className="preview-empty" style={emptyState}>
               <div className="preview-empty__icon" aria-hidden>

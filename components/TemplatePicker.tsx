@@ -1,46 +1,14 @@
 "use client";
 
+import { ReportPreviewIframe } from "@/components/ReportPreviewIframe";
 import {
   REPORT_TEMPLATE_LIST,
   REPORT_TEMPLATES,
   type ReportTemplateId,
 } from "@/lib/report/templates";
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { memo, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
-const PREVIEW_WIDTH = 1080;
-
-function measureDocumentHeight(doc: Document): number {
-  const root = doc.documentElement;
-  const body = doc.body;
-  return Math.max(
-    root.scrollHeight,
-    root.offsetHeight,
-    body?.scrollHeight ?? 0,
-    body?.offsetHeight ?? 0,
-  );
-}
-
-async function waitForPreviewImages(doc: Document): Promise<void> {
-  const pending = Array.from(doc.images).filter((img) => !img.complete);
-  if (pending.length === 0) return;
-  await Promise.all(
-    pending.map(
-      (img) =>
-        new Promise<void>((resolve) => {
-          const done = () => resolve();
-          img.addEventListener("load", done, { once: true });
-          img.addEventListener("error", done, { once: true });
-        }),
-    ),
-  );
-}
 const previewCache = new Map<ReportTemplateId, string>();
 
 async function fetchPreviewHtml(templateId: ReportTemplateId): Promise<string> {
@@ -59,152 +27,17 @@ async function fetchPreviewHtml(templateId: ReportTemplateId): Promise<string> {
   return data.html;
 }
 
-type FrameProps = {
+type TemplatePreviewFrameProps = {
   templateId: ReportTemplateId;
-  scale?: "fit" | number;
+  scaled?: boolean;
   className?: string;
-  labelledBy?: string;
-  onLoad?: () => void;
 };
-
-function ScaledPreviewIframe({
-  srcDoc,
-  scale,
-  className,
-  labelledBy,
-  onLoad,
-}: {
-  srcDoc: string;
-  scale: "fit" | number;
-  className?: string;
-  labelledBy?: string;
-  onLoad?: () => void;
-}) {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const measureGenRef = useRef(0);
-  const [layout, setLayout] = useState<{
-    scale: number;
-    height: number;
-    contentHeight: number;
-  } | null>(null);
-
-  const applyMeasure = useCallback(() => {
-    const wrap = wrapRef.current;
-    const iframe = iframeRef.current;
-    if (!wrap || !iframe) return false;
-
-    const doc = iframe.contentDocument;
-    if (!doc?.documentElement) return false;
-
-    const wrapWidth = wrap.clientWidth;
-    if (wrapWidth <= 0) return false;
-
-    const contentHeight = measureDocumentHeight(doc);
-    if (contentHeight <= 0) return false;
-
-    const scaleFactor =
-      scale === "fit" ? wrapWidth / PREVIEW_WIDTH : scale;
-
-    setLayout({
-      scale: scaleFactor,
-      height: Math.ceil(contentHeight * scaleFactor) + 4,
-      contentHeight,
-    });
-    onLoad?.();
-    return true;
-  }, [scale, onLoad]);
-
-  const measure = useCallback(async () => {
-    const gen = ++measureGenRef.current;
-    const iframe = iframeRef.current;
-    const doc = iframe?.contentDocument;
-    if (!doc) return;
-
-    await waitForPreviewImages(doc);
-    if (gen !== measureGenRef.current) return;
-
-    if (applyMeasure()) return;
-
-    requestAnimationFrame(() => {
-      if (gen !== measureGenRef.current) return;
-      if (applyMeasure()) return;
-      requestAnimationFrame(() => {
-        if (gen !== measureGenRef.current) return;
-        applyMeasure();
-      });
-    });
-  }, [applyMeasure]);
-
-  useEffect(() => {
-    if (!srcDoc) return;
-    setLayout(null);
-  }, [srcDoc]);
-
-  useEffect(() => {
-    const wrap = wrapRef.current;
-    if (!wrap || scale !== "fit") return;
-
-    const ro = new ResizeObserver(() => {
-      void measure();
-    });
-    ro.observe(wrap);
-    return () => ro.disconnect();
-  }, [scale, measure, srcDoc]);
-
-  const fallbackScale = scale === "fit" ? 0.28 : scale;
-
-  return (
-    <div
-      ref={wrapRef}
-      className={className}
-      style={{
-        width: "100%",
-        height: layout?.height ?? 200,
-        overflow: "hidden",
-        position: "relative",
-        background: "#fff",
-      }}
-      aria-labelledby={labelledBy}
-    >
-      {!layout && (
-        <span className="template-preview-frame__status">渲染预览…</span>
-      )}
-      <iframe
-        ref={iframeRef}
-        title="主题版式预览"
-        srcDoc={srcDoc}
-        scrolling="no"
-        onLoad={() => {
-          void measure();
-        }}
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: PREVIEW_WIDTH,
-          height: layout?.contentHeight ?? 5000,
-          border: "none",
-          display: "block",
-          transformOrigin: "top left",
-          transform: layout
-            ? `scale(${layout.scale})`
-            : `scale(${fallbackScale})`,
-          opacity: layout ? 1 : 0,
-          pointerEvents: "none",
-        }}
-      />
-    </div>
-  );
-}
 
 function TemplatePreviewFrameInner({
   templateId,
-  scale = "fit",
+  scaled = true,
   className,
-  labelledBy,
-  onLoad,
-}: FrameProps) {
+}: TemplatePreviewFrameProps) {
   const [srcDoc, setSrcDoc] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -256,17 +89,16 @@ function TemplatePreviewFrameInner({
   }
 
   return (
-    <ScaledPreviewIframe
+    <ReportPreviewIframe
       srcDoc={srcDoc}
-      scale={scale}
+      title="主题版式预览"
+      scaled={scaled}
       className={className}
-      labelledBy={labelledBy}
-      onLoad={onLoad}
     />
   );
 }
 
-export const TemplatePreviewFrame = memo(TemplatePreviewFrameInner);
+const TemplatePreviewFrame = memo(TemplatePreviewFrameInner);
 
 type PickerProps = {
   templateId: ReportTemplateId;
@@ -363,12 +195,11 @@ function TemplatePickerInner({
                 全屏预览
               </button>
             </div>
-            <div className="template-picker__preview-well">
+            <div className="template-picker__preview-well preview-scroll-well">
               <TemplatePreviewFrame
                 templateId={templateId}
-                scale="fit"
+                scaled
                 className="template-picker__preview-frame"
-                labelledBy={previewTitleId}
               />
             </div>
           </aside>
@@ -401,12 +232,12 @@ function TemplatePickerInner({
               关闭
             </button>
             <div
-              className="template-preview-modal__body"
+              className="template-preview-modal__body preview-scroll-well"
               onClick={(e) => e.stopPropagation()}
             >
               <TemplatePreviewFrame
                 templateId={templateId}
-                scale="fit"
+                scaled={false}
                 className="template-preview-modal__frame"
               />
             </div>
