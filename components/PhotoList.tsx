@@ -564,6 +564,7 @@ function PhotoGalleryInner({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [fullscreenEntry, setFullscreenEntry] = useState<PhotoEntry | null>(null);
+  const [fullscreenStageUrl, setFullscreenStageUrl] = useState<string | null>(null);
   const [photoDeleteTarget, setPhotoDeleteTarget] = useState<PhotoEntry | null>(null);
 
   const { getPreviewUrls, previewRevision } = usePhotoPreviewCache(photos);
@@ -639,9 +640,13 @@ function PhotoGalleryInner({
 
   const handleFullscreen = useCallback(() => {
     if (selected && !selected.ingestError && !isHeicLikeFile(selected.file)) {
+      // 优先复用已验证可加载的 stage 缩略图 URL（stage 预览能显示即说明该 URL 有效），
+      // 避免恢复草稿/历史时 blobUrl 已失效或为 0 字节导致全屏永久卡 loading。
+      const stageUrl = selectedPreview?.stageUrl ?? null;
+      setFullscreenStageUrl(stageUrl);
       setFullscreenEntry(selected);
     }
-  }, [selected]);
+  }, [selected, selectedPreview]);
 
   return (
     <>
@@ -701,9 +706,14 @@ function PhotoGalleryInner({
         !isHeicLikeFile(fullscreenEntry.file) &&
         !fullscreenEntry.ingestError && (
           <PhotoPreviewModal
-            imageUrl={pickFullscreenPreviewUrl(fullscreenEntry)}
+            imageUrl={
+              fullscreenStageUrl ?? pickFullscreenPreviewUrl(fullscreenEntry)
+            }
             fileName={fullscreenEntry.logicalName}
-            onClose={() => setFullscreenEntry(null)}
+            onClose={() => {
+              setFullscreenEntry(null);
+              setFullscreenStageUrl(null);
+            }}
           />
         )}
     </>

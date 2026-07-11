@@ -55,13 +55,37 @@ export async function createThumbnailPairFromFile(
   return { thumbUrl, stageUrl };
 }
 
+/**
+ * 同一 remoteUrl 的并发请求去重：usePhotoPreviewCache 的 effect 在父组件重渲染
+ * （或 React StrictMode 开发态双调用）时会重跑，若不去重，恢复草稿类照片
+ * （file.size === 0、仅有 remoteUrl）会在前一次 fetch 返回前被再次发起，
+ * 造成对同一张图发出多次完全相同的 GET。这里按 URL 复用同一个 in-flight 请求；
+ * 各消费者再从共享 Blob 独立生成缩略图，互不影响各自的 blob URL revoke。
+ */
+const remoteBlobInFlight = new Map<string, Promise<Blob>>();
+
+function fetchRemoteBlob(remoteUrl: string): Promise<Blob> {
+  const existing = remoteBlobInFlight.get(remoteUrl);
+  if (existing) return existing;
+  const promise = (async () => {
+    try {
+      const res = await fetch(remoteUrl);
+      if (!res.ok) throw new Error(`预览加载失败 (${res.status})`);
+      return await res.blob();
+    } finally {
+      // 完成后立即清除，后续调用可正常发起新请求（通常此时照片已入缓存，不会再到这里）
+      remoteBlobInFlight.delete(remoteUrl);
+    }
+  })();
+  remoteBlobInFlight.set(remoteUrl, promise);
+  return promise;
+}
+
 /** Remote-only entry (restored draft): fetch once then downscale. */
 export async function createThumbnailPairFromRemote(
   remoteUrl: string,
 ): Promise<{ thumbUrl: string; stageUrl: string }> {
-  const res = await fetch(remoteUrl);
-  if (!res.ok) throw new Error(`预览加载失败 (${res.status})`);
-  const blob = await res.blob();
+  const blob = await fetchRemoteBlob(remoteUrl);
   return createThumbnailPairFromBlob(blob);
 }
 
@@ -76,6 +100,10 @@ export async function createThumbnailPairFromBlob(
 }
 
 export function pickFullscreenPreviewUrl(entry: PhotoEntry): string {
-  if (entry.blobUrl && !isHeicLikeFile(entry.file)) return entry.blobUrl;
+  // 远端恢复的照片（file.size === 0）blobUrl 可能是 0 字节 blob 或指向已撤销对象，
+  // 此时优先用 remoteUrl；仅当本地有真实文件时才用 blobUrl（避免远端网络往返）。
+  if (entry.file.size > 0 && entry.blobUrl && !isHeicLikeFile(entry.file)) {
+    return entry.blobUrl;
+  }
   return entry.remoteUrl ?? entry.blobUrl;
 }
