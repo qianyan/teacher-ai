@@ -1,13 +1,12 @@
 import type { PhotoEntry } from "@/lib/photos/inject-blobs";
 import { logicalKeyFromFilename } from "@/lib/photos/inject-blobs";
-import { normalizeReportPhotoContentType } from "@/lib/photos/report-photo-mime";
+import {
+  normalizeReportPhotoContentType,
+  storageExtensionForReportPhoto,
+} from "@/lib/photos/report-photo-mime";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 const SIGN_URL = "/api/blob/report-upload";
-
-function safeFilename(name: string): string {
-  return name.replace(/^.*[/\\]/, "").replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 100);
-}
 
 type SignResponse = {
   bucket: string;
@@ -28,7 +27,6 @@ export async function uploadPhotoEntryToStorage(
     throw new Error(`Invalid filename for mapping: ${entry.logicalName}`);
   }
 
-  const pathname = `${entry.id}/${safeFilename(entry.logicalName)}`;
   const contentType = normalizeReportPhotoContentType(
     entry.logicalName,
     entry.file.type || "",
@@ -38,6 +36,14 @@ export async function uploadPhotoEntryToStorage(
       "无法识别图片类型（请使用 jpg / png / webp / gif / heic 等常见扩展名，或确保文件带有正确的类型）",
     );
   }
+
+  const ext = storageExtensionForReportPhoto(entry.logicalName, entry.file.type || "");
+  if (!ext) {
+    throw new Error(
+      "无法识别图片类型（请使用 jpg / png / webp / gif / heic 等常见扩展名，或确保文件带有正确的类型）",
+    );
+  }
+  const pathname = `${entry.id}/photo${ext}`;
 
   const payload: { pathname: string; contentType: string; size?: number } = {
     pathname,

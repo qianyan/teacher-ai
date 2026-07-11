@@ -20,6 +20,15 @@ const EXT_TO_MIME: Record<string, string> = {
   ".heif": "image/heif",
 };
 
+const MIME_TO_EXT: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+  "image/heic": ".heic",
+  "image/heif": ".heif",
+};
+
 function extensionFromFilename(name: string): string {
   const base = name.replace(/^.*[/\\]/, "").toLowerCase();
   const dot = base.lastIndexOf(".");
@@ -48,4 +57,14 @@ export function normalizeReportPhotoContentType(
     }
   }
   return null;
+}
+
+/** Stable storage suffix for a report photo object (e.g. `.jpg`). */
+export function storageExtensionForReportPhoto(
+  filename: string,
+  declaredType: string,
+): string | null {
+  const contentType = normalizeReportPhotoContentType(filename, declaredType);
+  if (!contentType) return null;
+  return MIME_TO_EXT[contentType] ?? null;
 }

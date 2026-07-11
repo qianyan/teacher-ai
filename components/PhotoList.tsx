@@ -1,7 +1,11 @@
 "use client";
 
 import type { PhotoEntry } from "@/lib/photos/inject-blobs";
-import { logicalKeyFromFilename } from "@/lib/photos/inject-blobs";
+import {
+  composeLogicalFilename,
+  logicalKeyFromFilename,
+  parseLogicalFilename,
+} from "@/lib/photos/inject-blobs";
 import { pickFullscreenPreviewUrl } from "@/lib/photos/preview-thumbnail";
 import { usePhotoPreviewCache } from "@/lib/photos/use-photo-preview-cache";
 import {
@@ -37,10 +41,61 @@ type FilmstripItem = {
   thumbUrl: string | null;
   loading: boolean;
   placeholderKind: "heic" | "error" | null;
+  uploadStatus: PhotoEntry["uploadStatus"];
 };
 
 function newId(): string {
   return crypto.randomUUID();
+}
+
+const NAME_COMMIT_DEBOUNCE_MS = 600;
+
+function extensionFromLogicalName(name: string): string {
+  const base = name.replace(/^.*[/\\]/, "");
+  const dot = base.lastIndexOf(".");
+  return dot >= 0 ? base.slice(dot) : ".jpg";
+}
+
+function draftDefaultsFromLogicalName(name: string): { prefix: string; index: number; ext: string } {
+  const parsed = parseLogicalFilename(name);
+  if (parsed) return parsed;
+  const ext = extensionFromLogicalName(name);
+  const base = name.replace(/^.*[/\\]/, "").replace(/\.[^.]+$/i, "");
+  return { prefix: base, index: 1, ext };
+}
+
+function syncStatusLabel(status: PhotoEntry["uploadStatus"]): string {
+  switch (status) {
+    case "pending":
+      return "等待上传";
+    case "uploading":
+      return "上传中";
+    case "synced":
+      return "已就绪";
+    case "error":
+      return "上传失败";
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
+  }
+}
+
+function syncBadgeClass(status: PhotoEntry["uploadStatus"]): string {
+  switch (status) {
+    case "pending":
+      return "photo-sync-badge photo-sync-badge--pending";
+    case "uploading":
+      return "photo-sync-badge photo-sync-badge--uploading";
+    case "synced":
+      return "photo-sync-badge photo-sync-badge--synced";
+    case "error":
+      return "photo-sync-badge photo-sync-badge--error";
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
+  }
 }
 
 async function deleteRemoteBlob(url: string | null): Promise<void> {
@@ -64,6 +119,7 @@ type FilmstripThumbProps = {
   thumbUrl: string | null;
   loading: boolean;
   placeholderKind: "heic" | "error" | null;
+  uploadStatus: PhotoEntry["uploadStatus"];
   isSelected: boolean;
   isDragging: boolean;
   onThumbClick: (e: MouseEvent<HTMLButtonElement>) => void;
@@ -80,6 +136,7 @@ function PhotoFilmstripThumb({
   thumbUrl,
   loading,
   placeholderKind,
+  uploadStatus,
   isSelected,
   isDragging,
   onThumbClick,
@@ -131,6 +188,11 @@ function PhotoFilmstripThumb({
           }}
         />
       )}
+      <span
+        className={syncBadgeClass(uploadStatus)}
+        title={syncStatusLabel(uploadStatus)}
+        aria-hidden
+      />
     </button>
   );
 }
@@ -214,6 +276,7 @@ const PhotoFilmstrip = memo(function PhotoFilmstrip({
           thumbUrl={item.thumbUrl}
           loading={item.loading}
           placeholderKind={item.placeholderKind}
+          uploadStatus={item.uploadStatus}
           isSelected={item.id === selectedId}
           isDragging={draggingIndex === item.index}
           onThumbClick={handleThumbClick}
@@ -293,7 +356,6 @@ type PhotoDetailPanelProps = {
   index: number;
   photoCount: number;
   onChange: Dispatch<SetStateAction<PhotoEntry[]>>;
-  uploadInFlight: MutableRefObject<Set<string>>;
   onMove: (index: number, dir: -1 | 1) => void;
   onDeleteRequest: (photo: PhotoEntry) => void;
 };
@@ -303,69 +365,157 @@ const PhotoDetailPanel = memo(function PhotoDetailPanel({
   index,
   photoCount,
   onChange,
-  uploadInFlight,
   onMove,
   onDeleteRequest,
 }: PhotoDetailPanelProps) {
-  const key = logicalKeyFromFilename(photo.logicalName);
+  const defaults = draftDefaultsFromLogicalName(photo.logicalName);
+  const [prefix, setPrefix] = useState(defaults.prefix);
+  const [indexStr, setIndexStr] = useState(String(defaults.index));
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ext = defaults.ext;
+
+  useEffect(() => {
+    const next = draftDefaultsFromLogicalName(photo.logicalName);
+    setPrefix(next.prefix);
+    setIndexStr(String(next.index));
+    setValidationError(null);
+  }, [photo.id, photo.logicalName]);
+
+  const draftIndex = parseInt(indexStr, 10);
+  const draftName =
+    prefix.trim() && Number.isFinite(draftIndex) && draftIndex >= 1
+      ? composeLogicalFilename(prefix, draftIndex, ext)
+      : null;
+  const draftKey = draftName ? logicalKeyFromFilename(draftName) : null;
+
+  const commitDraft = useCallback(
+    (nextPrefix: string, nextIndexStr: string, forceError: boolean) => {
+      const nextIndex = parseInt(nextIndexStr, 10);
+      if (!nextPrefix.trim() || !Number.isFinite(nextIndex) || nextIndex < 1) {
+        if (forceError) {
+          setValidationError("请填写前缀和大于 0 的序号");
+        }
+        return;
+      }
+      const composed = composeLogicalFilename(nextPrefix, nextIndex, ext);
+      if (!logicalKeyFromFilename(composed)) {
+        if (forceError) {
+          setValidationError("文件名需含前缀+序号，如 特色游戏1.jpg");
+        }
+        return;
+      }
+      setValidationError(null);
+      onChange((prev) =>
+        prev.map((x) => {
+          if (x.id !== photo.id) return x;
+          if (composed === x.logicalName) return x;
+          if (x.remoteUrl) {
+            return { ...x, logicalName: composed, uploadError: null };
+          }
+          return {
+            ...x,
+            logicalName: composed,
+            uploadStatus: "pending",
+            uploadError: null,
+          };
+        }),
+      );
+    },
+    [ext, onChange, photo.id],
+  );
+
+  const scheduleCommit = useCallback(
+    (nextPrefix: string, nextIndexStr: string) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      const delay = photo.remoteUrl ? 0 : NAME_COMMIT_DEBOUNCE_MS;
+      debounceRef.current = setTimeout(() => {
+        debounceRef.current = null;
+        commitDraft(nextPrefix, nextIndexStr, false);
+      }, delay);
+    },
+    [commitDraft, photo.remoteUrl],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
+  const handlePrefixChange = (value: string) => {
+    setPrefix(value);
+    scheduleCommit(value, indexStr);
+  };
+
+  const handleIndexChange = (value: string) => {
+    setIndexStr(value);
+    scheduleCommit(prefix, value);
+  };
+
+  const handleBlur = () => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    commitDraft(prefix, indexStr, true);
+  };
 
   return (
-    <div
-      style={{
-        marginTop: 14,
-        padding: "14px",
-        borderRadius: "var(--radius-sm)",
-        border: "1px solid var(--border)",
-        background: "var(--panel-elevated)",
-      }}
-    >
-      <input
-        type="text"
-        value={photo.logicalName}
-        onChange={(e) => {
-          const name = e.target.value;
-          onChange((prev) =>
-            prev.map((x) => {
-              if (x.id !== photo.id) return x;
-              if (name === x.logicalName) return x;
-              void deleteRemoteBlob(x.remoteUrl);
-              uploadInFlight.current.delete(x.id);
-              return {
-                ...x,
-                logicalName: name,
-                remoteUrl: null,
-                remotePathname: null,
-                uploadStatus: "pending",
-                uploadError: null,
-                uploadGeneration: x.uploadGeneration + 1,
-              };
-            }),
-          );
-        }}
-        className="app-input"
-        style={{ marginBottom: 8 }}
-        spellCheck={false}
-      />
-      <div
-        style={{
-          fontSize: 12,
-          color: key ? "var(--success)" : "var(--danger)",
-          marginBottom: 6,
-        }}
-      >
-        {key
-          ? `映射: data-report-photo="${key}"`
-          : "无法解析前缀+序号，请改为如 特色游戏1.jpg"}
+    <div className="photo-detail-panel">
+      <div className="photo-name-editor">
+        <label className="photo-name-field">
+          <span className="photo-name-field__label">前缀</span>
+          <input
+            type="text"
+            value={prefix}
+            onChange={(e) => handlePrefixChange(e.target.value)}
+            onBlur={handleBlur}
+            className="app-input"
+            spellCheck={false}
+            placeholder="特色游戏"
+          />
+        </label>
+        <label className="photo-name-field photo-name-field--index">
+          <span className="photo-name-field__label">序号</span>
+          <input
+            type="number"
+            min={1}
+            step={1}
+            value={indexStr}
+            onChange={(e) => handleIndexChange(e.target.value)}
+            onBlur={handleBlur}
+            className="app-input"
+            inputMode="numeric"
+          />
+        </label>
       </div>
-      <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>
-        {photo.uploadStatus === "pending" && "Blob：排队上传…"}
-        {photo.uploadStatus === "uploading" && "Blob：上传中…"}
-        {photo.uploadStatus === "synced" && photo.remoteUrl && "Blob：已同步"}
-        {photo.uploadStatus === "error" && (
-          <span style={{ color: "var(--danger)" }}>
-            Blob：{photo.uploadError || "同步失败"}
-          </span>
-        )}
+      <p className="photo-name-preview">
+        文件名预览：
+        <span>{draftName ?? `${prefix || "…"}${indexStr || "…"}${ext}`}</span>
+      </p>
+      <div
+        className={
+          validationError
+            ? "photo-name-mapping photo-name-mapping--error"
+            : draftKey
+              ? "photo-name-mapping photo-name-mapping--ok"
+              : "photo-name-mapping"
+        }
+      >
+        {validationError
+          ? validationError
+          : draftKey
+            ? `映射: data-report-photo="${draftKey}"`
+            : "填写前缀和序号后，将自动对应报告中的照片占位符"}
+      </div>
+      <div className="photo-sync-status">
+        <span className={syncBadgeClass(photo.uploadStatus)} aria-hidden />
+        <span>
+          {photo.uploadStatus === "error"
+            ? photo.uploadError || syncStatusLabel(photo.uploadStatus)
+            : syncStatusLabel(photo.uploadStatus)}
+        </span>
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <button
@@ -459,6 +609,7 @@ function PhotoGalleryInner({
           : isHeicLikeFile(p.file)
             ? "heic"
             : null,
+        uploadStatus: p.uploadStatus,
       };
     });
   }, [photos, previewRevision, getPreviewUrls]);
@@ -518,7 +669,6 @@ function PhotoGalleryInner({
           index={selectedIndex}
           photoCount={photos.length}
           onChange={onChange}
-          uploadInFlight={uploadInFlight}
           onMove={move}
           onDeleteRequest={setPhotoDeleteTarget}
         />
@@ -608,23 +758,14 @@ function PhotoListInner({ photos, onChange }: Props) {
   );
 
   useEffect(() => {
-    const pending = photos.filter((p) => p.uploadStatus === "pending");
+    const pending = photos.filter(
+      (p) =>
+        p.uploadStatus === "pending" &&
+        !p.remoteUrl &&
+        logicalKeyFromFilename(p.logicalName.trim()),
+    );
     for (const snapshot of pending) {
       if (uploadInFlight.current.has(snapshot.id)) continue;
-      if (!logicalKeyFromFilename(snapshot.logicalName.trim())) {
-        onChange((prev) =>
-          prev.map((x) =>
-            x.id === snapshot.id && x.uploadStatus === "pending"
-              ? {
-                  ...x,
-                  uploadStatus: "error",
-                  uploadError: "文件名需含前缀+序号，如 探究1.jpg",
-                }
-              : x,
-          ),
-        );
-        continue;
-      }
       uploadInFlight.current.add(snapshot.id);
       const gen = snapshot.uploadGeneration;
       void (async () => {
@@ -638,7 +779,10 @@ function PhotoListInner({ photos, onChange }: Props) {
           onChange((prev) =>
             prev.map((x) => {
               if (x.id !== snapshot.id) return x;
-              if (x.uploadGeneration !== gen) return x;
+              if (x.uploadGeneration !== gen) {
+                void deleteRemoteBlob(result.url);
+                return x;
+              }
               return {
                 ...x,
                 remoteUrl: result.url,
@@ -769,8 +913,8 @@ function PhotoListInner({ photos, onChange }: Props) {
           }}
         />
         <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
-          HEIC/HEIF 会在导入时转为 PNG 再上传，便于长图 API 使用外链、控制 POST 体积；文件名需「前缀+数字」如
-          探究1.jpg；缩略图栏拖拽排序，下方编辑当前选中项
+          HEIC/HEIF 会在导入时转为 PNG 再上传；请为每张照片设置「前缀 + 序号」，对应报告中的
+          data-report-photo 占位符；缩略图栏拖拽排序，下方编辑当前选中项
         </span>
       </div>
 

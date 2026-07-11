@@ -58,6 +58,35 @@ export function logicalKeyFromFilename(name: string): string | null {
   return `${m[1]}:${parseInt(m[2], 10)}`;
 }
 
+export type ParsedLogicalFilename = {
+  prefix: string;
+  index: number;
+  ext: string;
+};
+
+function extensionFromLogicalName(name: string): string {
+  const base = name.replace(/^.*[/\\]/, "");
+  const dot = base.lastIndexOf(".");
+  return dot >= 0 ? base.slice(dot) : ".jpg";
+}
+
+/** Split a logical filename into prefix, index, and extension; null if index missing. */
+export function parseLogicalFilename(name: string): ParsedLogicalFilename | null {
+  const ext = extensionFromLogicalName(name);
+  const base = name.replace(/^.*[/\\]/, "").replace(/\.[^.]+$/i, "");
+  const m = base.match(/^(.+?)(\d+)$/);
+  if (!m) return null;
+  const index = parseInt(m[2]!, 10);
+  if (!Number.isFinite(index) || index < 1) return null;
+  return { prefix: m[1]!, index, ext };
+}
+
+/** Compose a logical filename from prefix, index, and extension. */
+export function composeLogicalFilename(prefix: string, index: number, ext: string): string {
+  const normalizedExt = ext.startsWith(".") ? ext : `.${ext}`;
+  return `${prefix.trim()}${index}${normalizedExt}`;
+}
+
 /** Prefer HTTPS Blob URL for injection so preview / PNG / download use stable links when synced. */
 export function buildPhotoBlobUrlMap(entries: PhotoEntry[]): Map<string, string> {
   const map = new Map<string, string>();
