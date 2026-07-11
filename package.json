@@ -32,7 +32,9 @@
     "db:reset:local": "tsx scripts/migrate-db.ts --target local --reset",
     "supabase:start": "npx supabase start",
     "supabase:stop": "npx supabase stop",
-    "supabase:status": "npx supabase status"
+    "supabase:status": "npx supabase status",
+    "photos:cleanup-orphans": "tsx scripts/cleanup-orphan-photos.ts",
+    "photos:cleanup-orphans:delete": "tsx scripts/cleanup-orphan-photos.ts --delete"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
