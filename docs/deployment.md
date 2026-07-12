@@ -195,13 +195,16 @@ Pipeline:
 validate (test:env, lint, build)
   -> deploy-preview (vercel pull + env validate + vercel build + deploy)
   -> verify-preview (smoke tests)
+  -> migrate-db (main push only — supabase link + db push --linked)
   -> deploy-production (main push only)
 ```
 
 | Event | Result |
 | --- | --- |
 | Pull request to `main` | Preview deploy + smoke tests + PR comment |
-| Push to `main` | Preview deploy + smoke tests + production deploy + production smoke test |
+| Push to `main` | Preview deploy + smoke tests + DB migration + production deploy + production smoke test |
+
+Migrations run only on push to `main`, after preview smoke tests pass and before production deploy — schema lands before code that depends on it. Pull requests never touch any database.
 
 ### Where secrets live (never commit them)
 
@@ -221,6 +224,8 @@ CI runs `vercel pull` at deploy time to download Vercel env vars into `.vercel/.
 | --- | --- |
 | `VERCEL_TOKEN` | Vercel CLI auth for pull/build/deploy |
 | `VERCEL_AUTOMATION_BYPASS_SECRET` | Optional. Required when Vercel Deployment Protection blocks preview/production smoke tests |
+| `SUPABASE_ACCESS_TOKEN` | Supabase CLI auth for `db push --linked` in the `migrate-db` job |
+| `SUPABASE_PROJECT_REF` | Target Supabase project for `supabase link` in the `migrate-db` job |
 
 Repository variables are set in the workflow:
 
