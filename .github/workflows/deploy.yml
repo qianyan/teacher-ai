@@ -144,6 +144,11 @@ jobs:
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
+        with:
+          # Pin to the generation that supports the keys in supabase/config.toml
+          # (passkey, webauthn, pgdelta, storage.vector, oauth_server, …).
+          # Bump deliberately when updating config.toml after a local CLI upgrade.
+          version: 2.109.1
 
       - name: Link project
         run: supabase link --project-ref ${{ vars.SUPABASE_PROJECT_REF }}
