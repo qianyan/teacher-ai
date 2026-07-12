@@ -225,7 +225,7 @@ CI runs `vercel pull` at deploy time to download Vercel env vars into `.vercel/.
 | `VERCEL_TOKEN` | Vercel CLI auth for pull/build/deploy |
 | `VERCEL_AUTOMATION_BYPASS_SECRET` | Optional. Required when Vercel Deployment Protection blocks preview/production smoke tests |
 | `SUPABASE_ACCESS_TOKEN` | Supabase CLI auth for `db push --linked` in the `migrate-db` job |
-| `SUPABASE_PROJECT_REF` | Target Supabase project for `supabase link` in the `migrate-db` job |
+| `SUPABASE_PROJECT_REF` | **Repo variable** (not a secret — it's part of the public Supabase URL). Target project for `supabase link`. Read via `vars.SUPABASE_PROJECT_REF`. |
 
 Repository variables are set in the workflow:
 
