@@ -17,7 +17,7 @@ import { uploadPhotoEntryToStorage } from "@/lib/photos/upload-report-storage";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PhotoPreviewModal } from "@/components/PhotoPreviewModal";
 import { toastHeicImportFailed, toastPhotoRemoved } from "@/lib/user-toast";
-import type { CSSProperties, ChangeEvent, Dispatch, DragEvent, MouseEvent, SetStateAction } from "react";
+import type { CSSProperties, ChangeEvent, Dispatch, DragEvent, MouseEvent, ReactNode, SetStateAction } from "react";
 import {
   memo,
   startTransition,
@@ -127,7 +127,7 @@ function UploadStatusBadge({ status, error, onRetry }: UploadStatusBadgeProps) {
   }, [onRetry]);
 
   let className = "photo-upload-status";
-  let content: React.ReactNode;
+  let content: ReactNode;
 
   if (status === "synced") {
     className += " photo-upload-status--synced";

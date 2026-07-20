@@ -27,3 +27,4 @@ npm-debug.log*
 # dev ignore
 pnpm-lock.yaml
 .env*
+*.tsbuildinfo
