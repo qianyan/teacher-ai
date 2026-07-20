@@ -192,7 +192,7 @@ Workflow file: `.github/workflows/deploy.yml`
 Pipeline:
 
 ```text
-validate (test:env, lint, build)
+validate (test:env, ci-db-safety, lint, build)
   -> deploy-preview (vercel pull + env validate + vercel build + deploy)
   -> verify-preview (smoke tests)
   -> migrate-db (main push only — supabase link + db push --linked)
