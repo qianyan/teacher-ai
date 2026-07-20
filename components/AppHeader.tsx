@@ -74,21 +74,40 @@ function AppHeaderInner({
         >
           <span className="app-header__history-inner">
             <IconHistoryClock />
-            <span>历史</span>
+            <span className="app-header__label-text">历史</span>
             {historyCount > 0 && (
               <span className="history-badge">{historyCount > 99 ? "99+" : historyCount}</span>
             )}
           </span>
         </button>
-        <button type="button" className="btn btn--secondary btn--sm" onClick={signOut} title="退出登录">
-          退出
+        <button type="button" className="btn btn--secondary btn--sm" onClick={signOut} title="退出登录" aria-label="退出登录">
+          <IconLogout />
+          <span className="app-header__label-text">退出</span>
         </button>
-        <Link href="/account" className="btn btn--secondary btn--sm" title="账户与通行密钥">
-          账户
+        <Link href="/account" className="btn btn--secondary btn--sm" title="账户与通行密钥" aria-label="账户与通行密钥">
+          <IconUser />
+          <span className="app-header__label-text">账户</span>
         </Link>
         <ThemeToggle />
       </div>
     </header>
+  );
+}
+
+function IconLogout() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconUser() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
   );
 }
 
