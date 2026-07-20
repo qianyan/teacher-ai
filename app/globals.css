@@ -2099,3 +2099,232 @@ a:hover {
   color: var(--text-muted);
   font-size: 0.875rem;
 }
+
+/* Photo upload: mobile-first toolbar */
+.photo-upload-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.photo-upload-toolbar__label {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.photo-upload-toolbar__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.photo-upload-btn {
+  min-height: 40px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  touch-action: manipulation;
+}
+
+.photo-upload-btn--camera {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.photo-upload-btn--camera:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.photo-upload-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+  line-height: 1.55;
+}
+
+.photo-empty-state {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0;
+  padding: 12px 0;
+}
+
+/* Photo upload status badges */
+.photo-upload-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  line-height: 1.4;
+}
+
+.photo-upload-status--pending {
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.photo-upload-status--uploading {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid transparent;
+}
+
+.photo-upload-status--synced {
+  color: var(--success);
+  background: rgba(31, 169, 122, 0.12);
+  border: 1px solid transparent;
+}
+
+.photo-upload-status--error {
+  color: var(--danger);
+  background: rgba(229, 72, 77, 0.1);
+  border: 1px solid transparent;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.photo-upload-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: photoUploadSpin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes photoUploadSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.photo-upload-retry {
+  margin-left: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--danger);
+  background: white;
+  border: 1px solid var(--danger);
+  border-radius: 999px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+[data-theme="dark"] .photo-upload-retry {
+  background: var(--panel-elevated);
+}
+
+.photo-upload-retry:hover {
+  background: var(--danger);
+  color: white;
+}
+
+/* Photo detail actions: touch-friendly */
+.photo-detail-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.photo-detail-btn {
+  min-height: 40px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.12s ease;
+}
+
+.photo-detail-btn:hover:not(:disabled) {
+  background: var(--panel-elevated);
+  border-color: var(--accent);
+}
+
+.photo-detail-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.photo-detail-btn--danger {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: rgba(229, 72, 77, 0.06);
+}
+
+.photo-detail-btn--danger:hover:not(:disabled) {
+  background: var(--danger);
+  color: white;
+}
+
+/* Mobile photo improvements */
+@media (max-width: 640px) {
+  .photo-upload-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .photo-upload-toolbar__actions {
+    justify-content: stretch;
+  }
+
+  .photo-upload-btn {
+    flex: 1 1 0;
+    justify-content: center;
+    min-height: 48px;
+    font-size: 15px;
+  }
+
+  .photo-upload-hint {
+    font-size: 12px;
+  }
+
+  .photo-filmstrip-thumb {
+    width: 112px;
+    height: 76px;
+    border-radius: 14px;
+  }
+
+  .photo-detail-actions {
+    gap: 12px;
+  }
+
+  .photo-detail-btn {
+    flex: 1 1 0;
+    justify-content: center;
+    min-height: 44px;
+    font-size: 15px;
+  }
+
+  .photo-upload-status {
+    font-size: 13px;
+    padding: 5px 12px;
+  }
+}
+
+@media (max-width: 380px) {
+  .photo-filmstrip-thumb {
+    width: 96px;
+    height: 64px;
+  }
+}

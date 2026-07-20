@@ -98,6 +98,53 @@ function syncBadgeClass(status: PhotoEntry["uploadStatus"]): string {
   }
 }
 
+type UploadStatusBadgeProps = {
+  status: PhotoEntry["uploadStatus"];
+  error: string | null;
+  onRetry?: () => void;
+};
+
+function UploadStatusBadge({ status, error, onRetry }: UploadStatusBadgeProps) {
+  if (status === "synced") {
+    return (
+      <span className="photo-upload-status photo-upload-status--synced">
+        已同步
+      </span>
+    );
+  }
+  if (status === "uploading") {
+    return (
+      <span className="photo-upload-status photo-upload-status--uploading">
+        <span className="photo-upload-spinner" aria-hidden />
+        上传中…
+      </span>
+    );
+  }
+  if (status === "error") {
+    return (
+      <span className="photo-upload-status photo-upload-status--error">
+        {error || "上传失败"}
+        {onRetry && (
+          <button
+            type="button"
+            className="photo-upload-retry"
+            onClick={onRetry}
+            title="重试上传"
+          >
+            重试
+          </button>
+        )}
+      </span>
+    );
+  }
+  return (
+    <span className="photo-upload-status photo-upload-status--pending">
+      <span className="photo-upload-spinner" aria-hidden />
+      排队上传…
+    </span>
+  );
+}
+
 async function deleteRemoteBlob(url: string | null): Promise<void> {
   if (!url) return;
   try {
@@ -358,6 +405,7 @@ type PhotoDetailPanelProps = {
   onChange: Dispatch<SetStateAction<PhotoEntry[]>>;
   onMove: (index: number, dir: -1 | 1) => void;
   onDeleteRequest: (photo: PhotoEntry) => void;
+  onRetryUpload?: (photo: PhotoEntry) => void;
 };
 
 const PhotoDetailPanel = memo(function PhotoDetailPanel({
@@ -367,6 +415,7 @@ const PhotoDetailPanel = memo(function PhotoDetailPanel({
   onChange,
   onMove,
   onDeleteRequest,
+  onRetryUpload,
 }: PhotoDetailPanelProps) {
   const defaults = draftDefaultsFromLogicalName(photo.logicalName);
   const [prefix, setPrefix] = useState(defaults.prefix);
@@ -509,34 +558,35 @@ const PhotoDetailPanel = memo(function PhotoDetailPanel({
             ? `映射: data-report-photo="${draftKey}"`
             : "填写前缀和序号后，将自动对应报告中的照片占位符"}
       </div>
-      <div className="photo-sync-status">
-        <span className={syncBadgeClass(photo.uploadStatus)} aria-hidden />
-        <span>
-          {photo.uploadStatus === "error"
-            ? photo.uploadError || syncStatusLabel(photo.uploadStatus)
-            : syncStatusLabel(photo.uploadStatus)}
-        </span>
+      <div style={{ marginBottom: 10 }}>
+        <UploadStatusBadge
+          status={photo.uploadStatus}
+          error={photo.uploadError}
+          onRetry={onRetryUpload ? () => onRetryUpload(photo) : undefined}
+        />
       </div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div className="photo-detail-actions">
         <button
           type="button"
-          style={smallBtn}
+          className="photo-detail-btn"
           disabled={index === 0}
           onClick={() => onMove(index, -1)}
+          aria-label="上移"
         >
-          上移
+          ↑ 上移
         </button>
         <button
           type="button"
-          style={smallBtn}
+          className="photo-detail-btn"
           disabled={index === photoCount - 1}
           onClick={() => onMove(index, 1)}
+          aria-label="下移"
         >
-          下移
+          ↓ 下移
         </button>
         <button
           type="button"
-          style={{ ...smallBtn, color: "var(--danger)" }}
+          className="photo-detail-btn photo-detail-btn--danger"
           onClick={() => onDeleteRequest(photo)}
         >
           删除
@@ -648,6 +698,25 @@ function PhotoGalleryInner({
     }
   }, [selected, selectedPreview]);
 
+  const retryUpload = useCallback(
+    (photo: PhotoEntry) => {
+      uploadInFlight.current.delete(photo.id);
+      onChange((prev) =>
+        prev.map((x) =>
+          x.id === photo.id
+            ? {
+                ...x,
+                uploadStatus: "pending",
+                uploadError: null,
+                uploadGeneration: x.uploadGeneration + 1,
+              }
+            : x,
+        ),
+      );
+    },
+    [onChange, uploadInFlight],
+  );
+
   return (
     <>
       {selected && selectedPreview ? (
@@ -676,6 +745,7 @@ function PhotoGalleryInner({
           onChange={onChange}
           onMove={move}
           onDeleteRequest={setPhotoDeleteTarget}
+          onRetryUpload={retryUpload}
         />
       ) : null}
 
@@ -723,7 +793,8 @@ function PhotoGalleryInner({
 const PhotoGallery = memo(PhotoGalleryInner);
 
 function PhotoListInner({ photos, onChange }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const uploadInFlight = useRef(new Set<string>());
   const heicMigrateInFlight = useRef(new Set<string>());
   const [importBusy, setImportBusy] = useState(false);
@@ -883,28 +954,29 @@ function PhotoListInner({ photos, onChange }: Props) {
 
   return (
     <div style={{ marginBottom: 16 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <span style={{ fontWeight: 600, fontSize: 15, color: "var(--text)" }}>
-          照片
-        </span>
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="btn btn--secondary"
-          disabled={importBusy}
-        >
-          {importBusy ? "处理中…" : "导入多张照片"}
-        </button>
+      <div className="photo-upload-toolbar">
+        <span className="photo-upload-toolbar__label">照片</span>
+        <div className="photo-upload-toolbar__actions">
+          <button
+            type="button"
+            onClick={() => galleryInputRef.current?.click()}
+            className="btn btn--secondary photo-upload-btn"
+            disabled={importBusy}
+          >
+            {importBusy ? "处理中…" : "📷 导入照片"}
+          </button>
+          <button
+            type="button"
+            onClick={() => cameraInputRef.current?.click()}
+            className="btn btn--primary photo-upload-btn photo-upload-btn--camera"
+            disabled={importBusy}
+            title="直接拍照"
+          >
+            📸 拍照
+          </button>
+        </div>
         <input
-          ref={inputRef}
+          ref={galleryInputRef}
           type="file"
           accept="image/*,.heic,.heif"
           multiple
@@ -922,14 +994,33 @@ function PhotoListInner({ photos, onChange }: Props) {
             })();
           }}
         />
-        <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
-          HEIC/HEIF 会在导入时转为 PNG 再上传；请为每张照片设置「前缀 + 序号」，对应报告中的
-          data-report-photo 占位符；缩略图栏拖拽排序，下方编辑当前选中项
-        </span>
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*,.heic,.heif"
+          capture="environment"
+          hidden
+          onChange={(e) => {
+            const files = e.target.files ? Array.from(e.target.files) : [];
+            e.target.value = "";
+            void (async () => {
+              setImportBusy(true);
+              try {
+                await addFiles(files);
+              } finally {
+                setImportBusy(false);
+              }
+            })();
+          }}
+        />
       </div>
 
+      <p className="photo-upload-hint">
+        HEIC/HEIF 会在导入时转为 PNG 再上传；文件名需「前缀+数字」如 探究1.jpg；选中下方缩略图可编辑名称与排序
+      </p>
+
       {photos.length === 0 ? (
-        <p style={{ fontSize: 14, color: "var(--text-muted)", margin: 0 }}>
+        <p className="photo-empty-state">
           尚未添加照片
         </p>
       ) : (
@@ -1021,13 +1112,3 @@ function HeicPreviewPlaceholder({
     </div>
   );
 }
-
-const smallBtn: CSSProperties = {
-  padding: "6px 12px",
-  fontSize: 13,
-  borderRadius: 6,
-  border: "1px solid var(--border)",
-  background: "var(--bg)",
-  cursor: "pointer",
-  fontFamily: "inherit",
-};
