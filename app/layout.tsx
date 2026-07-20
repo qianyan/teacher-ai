@@ -1,8 +1,14 @@
 import { AppToaster } from "@/components/AppToaster";
 import { ThemeScript } from "@/components/ThemeScript";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Noto_Sans_SC, Outfit } from "next/font/google";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 const fontDisplay = Outfit({
   subsets: ["latin"],

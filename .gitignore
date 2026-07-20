@@ -2,6 +2,9 @@
 # User report photo folder at repo root only (do not use plain "photos" — it ignores lib/photos/)
 /photos
 
+# Lavish planning artifacts
+.lavish/
+
 # dependencies
 node_modules
 .pnp

@@ -41,7 +41,7 @@ export function DraftStatusChip({ draftSavedAt, draftError, onClearDraft }: Prop
       <span className="draft-chip__icon" aria-hidden>
         <IconDraft />
       </span>
-      <div style={textCol}>
+      <div className="draft-chip__meta" style={textCol}>
         <span style={label}>草稿</span>
         <span style={sub}>
           {draftError ? (
