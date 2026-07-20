@@ -71,6 +71,7 @@ function AppHeaderInner({
           aria-expanded={historySidebarOpen}
           aria-controls="history-sidebar-panel"
           title="历史记录"
+          aria-label="历史记录"
         >
           <span className="app-header__history-inner">
             <IconHistoryClock />
