@@ -238,7 +238,7 @@ a:hover {
   min-width: 0;
 }
 
-.app-brand-title--compact {
+.app-header--compact .app-brand-title--compact {
   font-size: clamp(1.05rem, 2.2vw, 1.35rem);
   margin: 0;
 }
@@ -279,7 +279,7 @@ a:hover {
     height: 36px;
   }
 
-  .app-brand-title--compact {
+  .app-header--compact .app-brand-title--compact {
     font-size: 1.05rem;
   }
 
@@ -292,8 +292,11 @@ a:hover {
     gap: 6px;
   }
 
-  .app-header--compact .history-sidebar-toggle {
-    padding: 8px 10px;
+  .app-header--compact .history-sidebar-toggle,
+  .app-header--compact .btn--sm {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 12px;
   }
 
   .draft-chip {
@@ -1144,7 +1147,7 @@ a:hover {
     font-size: 1rem;
   }
 
-  .app-label {
+  html .app-label {
     font-size: 13px;
   }
 
