@@ -17,7 +17,7 @@ import { uploadPhotoEntryToStorage } from "@/lib/photos/upload-report-storage";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PhotoPreviewModal } from "@/components/PhotoPreviewModal";
 import { toastHeicImportFailed, toastPhotoRemoved } from "@/lib/user-toast";
-import type { CSSProperties, Dispatch, DragEvent, MouseEvent, SetStateAction } from "react";
+import type { CSSProperties, ChangeEvent, Dispatch, DragEvent, MouseEvent, SetStateAction } from "react";
 import {
   memo,
   startTransition,
@@ -105,42 +105,77 @@ type UploadStatusBadgeProps = {
 };
 
 function UploadStatusBadge({ status, error, onRetry }: UploadStatusBadgeProps) {
+  const containerRef = useRef<HTMLSpanElement>(null);
+  const prevStatusRef = useRef(status);
+  const retryHadFocusRef = useRef(false);
+
+  useEffect(() => {
+    if (
+      prevStatusRef.current === "error" &&
+      status !== "error" &&
+      retryHadFocusRef.current
+    ) {
+      containerRef.current?.focus();
+      retryHadFocusRef.current = false;
+    }
+    prevStatusRef.current = status;
+  }, [status]);
+
+  const handleRetryClick = useCallback(() => {
+    retryHadFocusRef.current = true;
+    onRetry?.();
+  }, [onRetry]);
+
+  let className = "photo-upload-status";
+  let content: React.ReactNode;
+
   if (status === "synced") {
-    return (
-      <span className="photo-upload-status photo-upload-status--synced">
-        已同步
-      </span>
-    );
-  }
-  if (status === "uploading") {
-    return (
-      <span className="photo-upload-status photo-upload-status--uploading">
+    className += " photo-upload-status--synced";
+    content = "已同步";
+  } else if (status === "uploading") {
+    className += " photo-upload-status--uploading";
+    content = (
+      <>
         <span className="photo-upload-spinner" aria-hidden />
         上传中…
-      </span>
+      </>
     );
-  }
-  if (status === "error") {
-    return (
-      <span className="photo-upload-status photo-upload-status--error">
+  } else if (status === "error") {
+    className += " photo-upload-status--error";
+    content = (
+      <>
         {error || "上传失败"}
         {onRetry && (
           <button
             type="button"
             className="photo-upload-retry"
-            onClick={onRetry}
+            onClick={handleRetryClick}
             title="重试上传"
           >
             重试
           </button>
         )}
-      </span>
+      </>
+    );
+  } else {
+    className += " photo-upload-status--pending";
+    content = (
+      <>
+        <span className="photo-upload-spinner" aria-hidden />
+        排队上传…
+      </>
     );
   }
+
   return (
-    <span className="photo-upload-status photo-upload-status--pending">
-      <span className="photo-upload-spinner" aria-hidden />
-      排队上传…
+    <span
+      ref={containerRef}
+      className={className}
+      tabIndex={-1}
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      {content}
     </span>
   );
 }
@@ -838,6 +873,20 @@ function PhotoListInner({ photos, onChange }: Props) {
     [photos, onChange],
   );
 
+  const handleFileInputChange = useCallback(
+    async (e: ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files ? Array.from(e.target.files) : [];
+      e.target.value = "";
+      setImportBusy(true);
+      try {
+        await addFiles(files);
+      } finally {
+        setImportBusy(false);
+      }
+    },
+    [addFiles],
+  );
+
   useEffect(() => {
     const pending = photos.filter(
       (p) =>
@@ -981,18 +1030,7 @@ function PhotoListInner({ photos, onChange }: Props) {
           accept="image/*,.heic,.heif"
           multiple
           hidden
-          onChange={(e) => {
-            const files = e.target.files ? Array.from(e.target.files) : [];
-            e.target.value = "";
-            void (async () => {
-              setImportBusy(true);
-              try {
-                await addFiles(files);
-              } finally {
-                setImportBusy(false);
-              }
-            })();
-          }}
+          onChange={handleFileInputChange}
         />
         <input
           ref={cameraInputRef}
@@ -1000,18 +1038,7 @@ function PhotoListInner({ photos, onChange }: Props) {
           accept="image/*,.heic,.heif"
           capture="environment"
           hidden
-          onChange={(e) => {
-            const files = e.target.files ? Array.from(e.target.files) : [];
-            e.target.value = "";
-            void (async () => {
-              setImportBusy(true);
-              try {
-                await addFiles(files);
-              } finally {
-                setImportBusy(false);
-              }
-            })();
-          }}
+          onChange={handleFileInputChange}
         />
       </div>
 
