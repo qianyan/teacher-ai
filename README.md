@@ -1,6 +1,6 @@
 # Teacher AI
 
-Teacher AI is a Next.js app that helps early-childhood teachers write and export **biweekly toddler class reports** in Chinese. Teachers fill in a structured workbench (intro, body sections, class name, date range), upload activity photos, and generate a polished HTML report with an optional long-screenshot PNG export. Auth is invite-only via email/password plus passkey login; generated reports and drafts are saved to Supabase.
+Teacher AI is a Next.js app that helps early-childhood teachers write and export **biweekly toddler class reports** in Chinese. Teachers fill in a structured workbench (intro, body sections, class name, date range), upload activity photos, and generate a polished HTML report with an optional long-screenshot PNG export. Auth is invite-only via email/password plus passkey login; generated reports are saved to Supabase and drafts are autosaved locally in IndexedDB.
 
 ## Who is it for?
 
