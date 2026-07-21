@@ -7,10 +7,11 @@ import { useState } from "react";
 type Props = {
   draftSavedAt: number | null;
   draftError: string | null;
+  isSaving?: boolean;
   onClearDraft: () => void | Promise<void>;
 };
 
-export function DraftStatusChip({ draftSavedAt, draftError, onClearDraft }: Props) {
+export function DraftStatusChip({ draftSavedAt, draftError, isSaving, onClearDraft }: Props) {
   const [clearOpen, setClearOpen] = useState(false);
 
   const timeLabel =
@@ -44,7 +45,9 @@ export function DraftStatusChip({ draftSavedAt, draftError, onClearDraft }: Prop
       <div className="draft-chip__meta" style={textCol}>
         <span style={label}>草稿</span>
         <span style={sub}>
-          {draftError ? (
+          {isSaving ? (
+            <>保存中…</>
+          ) : draftError ? (
             <span style={{ color: "var(--danger)" }}>{draftError}</span>
           ) : timeLabel ? (
             <>已保存 · {timeLabel}</>
@@ -58,6 +61,7 @@ export function DraftStatusChip({ draftSavedAt, draftError, onClearDraft }: Prop
         className="btn btn--secondary"
         style={{ fontSize: 12, padding: "6px 10px", flexShrink: 0 }}
         onClick={() => setClearOpen(true)}
+        disabled={isSaving}
       >
         清除
       </button>

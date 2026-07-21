@@ -83,6 +83,7 @@ export default function HomePage() {
     isHydrating,
     draftSavedAt,
     draftError,
+    isSaving,
     history,
     recordHistoryAfterGenerate,
     loadHistoryEntry,
@@ -246,6 +247,7 @@ export default function HomePage() {
         <AppHeader
           draftSavedAt={draftSavedAt}
           draftError={draftError}
+          isSaving={isSaving}
           onClearDraft={handleClearDraft}
           historyCount={history.length}
           historySidebarOpen={historySidebarOpen}
