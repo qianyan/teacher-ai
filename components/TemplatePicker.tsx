@@ -6,8 +6,7 @@ import {
   REPORT_TEMPLATES,
   type ReportTemplateId,
 } from "@/lib/report/templates";
-import { injectViewportForFullscreen } from "@/lib/report/assemble";
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 const previewCache = new Map<ReportTemplateId, string>();
@@ -70,11 +69,6 @@ function TemplatePreviewFrameInner({
     };
   }, [templateId]);
 
-  const displaySrcDoc = useMemo(
-    () => (fitToViewport ? injectViewportForFullscreen(srcDoc) : srcDoc),
-    [srcDoc, fitToViewport],
-  );
-
   if (loading) {
     return (
       <div
@@ -98,7 +92,7 @@ function TemplatePreviewFrameInner({
 
   return (
     <ReportPreviewIframe
-      srcDoc={displaySrcDoc}
+      srcDoc={srcDoc}
       title="主题版式预览"
       scaled={scaled && !fitToViewport}
       fitToViewport={fitToViewport}
