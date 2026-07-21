@@ -9,6 +9,11 @@
     "lint": "next lint",
     "test:env": "tsx scripts/validate-env.test.ts",
     "test:ci-db-safety": "tsx scripts/check-ci-db-safety.test.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test",
+    "e2e:install": "playwright install --with-deps chromium",
     "smoke:preview": "tsx scripts/smoke-preview.ts",
     "env:validate": "tsx scripts/validate-env.ts",
     "env:validate:local": "tsx scripts/validate-env.ts --target local --env-file .env.local",
@@ -60,11 +65,13 @@
     "@types/node": "^22.10.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@playwright/test": "^1.59.1",
     "dotenv": "^16.4.5",
     "e2b": "^2.31.0",
     "eslint": "^9.17.0",
     "eslint-config-next": "^15.1.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.9"
   }
 }

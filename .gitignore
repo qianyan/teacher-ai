@@ -27,6 +27,12 @@ npm-debug.log*
 # vercel
 .vercel
 
+# test artifacts
+/playwright-report
+/test-results
+/blob-report
+/coverage
+
 # dev ignore
 pnpm-lock.yaml
 .env*

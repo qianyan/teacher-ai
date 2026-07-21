@@ -192,11 +192,14 @@ Workflow file: `.github/workflows/deploy.yml`
 Pipeline:
 
 ```text
-validate (test:env, ci-db-safety, lint, build)
+validate (test:env, ci-db-safety, vitest unit+integration, lint, build)
   -> deploy-preview (vercel pull + env validate + vercel build + deploy)
   -> verify-preview (smoke tests)
   -> migrate-db (main push only — supabase link + db push --linked)
   -> deploy-production (main push only)
+
+e2e (Playwright) runs in parallel with validate and does not gate deploys;
+it uploads the playwright-report artifact.
 ```
 
 | Event | Result |
