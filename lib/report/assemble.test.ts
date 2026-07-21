@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  assembleFullDocument,
   applyShellReplacements,
+  assembleFullDocument,
   escapeText,
+  injectViewportForFullscreen,
 } from "@/lib/report/assemble";
 
 const SHELL = `<section class="header">
@@ -73,5 +74,39 @@ describe("assembleFullDocument", () => {
     // Shell before body before footer.
     expect(doc.indexOf("BODY")).toBeGreaterThan(doc.indexOf("header"));
     expect(doc.indexOf("FOOT")).toBeGreaterThan(doc.indexOf("BODY"));
+  });
+});
+
+describe("injectViewportForFullscreen", () => {
+  it("replaces an existing viewport meta with a 1080px layout viewport", () => {
+    const html = `<!DOCTYPE html>
+<html><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>T</title>
+</head><body></body></html>`;
+    const out = injectViewportForFullscreen(html);
+    expect(out).toContain('<meta name="viewport" content="width=1080">');
+    expect(out).not.toContain("width=device-width");
+  });
+
+  it("injects a viewport meta when none exists", () => {
+    const html = `<!DOCTYPE html>
+<html><head>
+  <meta charset="utf-8">
+  <title>T</title>
+</head><body></body></html>`;
+    const out = injectViewportForFullscreen(html);
+    expect(out).toContain('<meta name="viewport" content="width=1080">');
+  });
+
+  it("handles single-quoted viewport meta tags", () => {
+    const html = `<!DOCTYPE html>
+<html><head>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+</head><body></body></html>`;
+    const out = injectViewportForFullscreen(html);
+    expect(out).toContain('<meta name="viewport" content="width=1080">');
+    expect(out).not.toContain("width=device-width");
   });
 });

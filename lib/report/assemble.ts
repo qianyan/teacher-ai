@@ -67,3 +67,19 @@ export function assembleFullDocument(
   });
   return `${head.trim()}\n${opts.dynamicBodyHtml.trim()}\n${footerHtml.trim()}\n`;
 }
+
+/**
+ * Replace the responsive viewport meta with a fixed 1080px viewport.
+ * This lets the iframe itself scale the fixed-width newsletter to fit a
+ * narrow container and scroll its own document, avoiding the white-screen
+ * artifacts that occur when a CSS-transform-scaled iframe is scrolled inside
+ * a parent container.
+ */
+export function injectViewportForFullscreen(srcDoc: string): string {
+  const viewportTag = `<meta name="viewport" content="width=1080">`;
+  const viewportRegex = /<meta[^\u003e]*name=["']viewport["'][^\u003e]*>/i;
+  if (viewportRegex.test(srcDoc)) {
+    return srcDoc.replace(viewportRegex, viewportTag);
+  }
+  return srcDoc.replace(/<head>/i, `<head>${viewportTag}`);
+}

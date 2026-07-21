@@ -770,7 +770,21 @@ a:hover {
   position: absolute;
   top: 16px;
   right: 16px;
-  z-index: 1;
+  z-index: 10;
+  min-width: 64px;
+  min-height: 40px;
+  touch-action: manipulation;
+}
+
+@media (max-width: 640px) {
+  .template-preview-modal__close {
+    top: 12px;
+    right: 12px;
+    min-width: 72px;
+    min-height: 44px;
+    padding: 10px 14px;
+    font-size: 15px;
+  }
 }
 
 .template-preview-modal__body {
@@ -784,11 +798,69 @@ a:hover {
   box-shadow: var(--shadow-md);
 }
 
+.template-preview-modal__body--fit {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
 .template-preview-modal__frame {
   max-width: 1080px;
   margin: 0 auto;
   border-radius: 8px;
   box-shadow: var(--shadow-md);
+}
+
+.template-preview-modal__frame--fit {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.report-preview-frame {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  background: var(--bg);
+}
+
+.report-preview-frame__skeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(
+    90deg,
+    var(--border-subtle) 0%,
+    color-mix(in srgb, var(--border-subtle) 60%, transparent) 50%,
+    var(--border-subtle) 100%
+  );
+  background-size: 200% 100%;
+  animation: report-preview-shimmer 1.2s ease-in-out infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes report-preview-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.report-preview-frame__status {
+  position: absolute;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .btn--compact {
@@ -1948,6 +2020,11 @@ a:hover {
 @media (prefers-reduced-motion: reduce) {
   .photo-sync-badge--uploading {
     animation: none;
+  }
+
+  .report-preview-frame__skeleton {
+    animation: none;
+    background: var(--border-subtle);
   }
 }
 

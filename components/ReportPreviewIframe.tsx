@@ -37,158 +37,221 @@ type Props = {
   title?: string;
   /** Fit newsletter width inside parent; scales height proportionally. */
   scaled?: boolean;
+  /**
+   * Render the iframe at 100% width/height and let the document scroll itself.
+   * The srcDoc should contain a viewport meta set to width=1080 so the fixed
+   * 1080px layout scales to fit the iframe width.
+   */
+  fitToViewport?: boolean;
   className?: string;
   style?: CSSProperties;
 };
 
 const ReportPreviewIframeInner = forwardRef<HTMLIFrameElement, Props>(
   function ReportPreviewIframeInner(
-    { srcDoc, title = "简报预览", scaled = false, className, style },
+    {
+      srcDoc,
+      title = "简报预览",
+      scaled = false,
+      fitToViewport = false,
+      className,
+      style,
+    },
     forwardedRef,
   ) {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  useImperativeHandle(forwardedRef, () => iframeRef.current as HTMLIFrameElement);
-  const measureGenRef = useRef(0);
-  const [frameHeight, setFrameHeight] = useState<number | null>(null);
-  const [scaledLayout, setScaledLayout] = useState<{
-    scale: number;
-    height: number;
-  } | null>(null);
+    const wrapRef = useRef<HTMLDivElement>(null);
+    const iframeRef = useRef<HTMLIFrameElement>(null);
+    useImperativeHandle(
+      forwardedRef,
+      () => iframeRef.current as HTMLIFrameElement,
+    );
+    const measureGenRef = useRef(0);
+    const [frameHeight, setFrameHeight] = useState<number | null>(null);
+    const [scaledLayout, setScaledLayout] = useState<{
+      scale: number;
+      height: number;
+    } | null>(null);
+    const [ready, setReady] = useState(false);
 
-  const syncHeight = useCallback(async () => {
-    const gen = ++measureGenRef.current;
-    const iframe = iframeRef.current;
-    const doc = iframe?.contentDocument;
-    if (!doc) return;
+    const syncHeight = useCallback(async () => {
+      if (fitToViewport) return;
+      const gen = ++measureGenRef.current;
+      const iframe = iframeRef.current;
+      const doc = iframe?.contentDocument;
+      if (!doc) return;
 
-    await waitForPreviewImages(doc);
-    if (gen !== measureGenRef.current) return;
-
-    const run = () => {
-      if (gen !== measureGenRef.current || !iframeRef.current) return false;
-      const iframeEl = iframeRef.current;
-      const contentDoc = iframeEl.contentDocument;
-      if (!contentDoc) return false;
-
-      const contentHeight = applyReportPreviewIframeHeight(iframeEl, contentDoc);
-      if (contentHeight == null) return false;
-      setFrameHeight(contentHeight);
-
-      if (scaled) {
-        const wrap = wrapRef.current;
-        const wrapWidth = wrap?.clientWidth ?? PREVIEW_WIDTH;
-        if (wrapWidth <= 0) return false;
-        const scaleFactor = wrapWidth / PREVIEW_WIDTH;
-        setScaledLayout({
-          scale: scaleFactor,
-          height: Math.ceil(contentHeight * scaleFactor),
-        });
-      } else {
-        setScaledLayout(null);
-      }
-      return true;
-    };
-
-    if (run()) return;
-    requestAnimationFrame(() => {
+      await waitForPreviewImages(doc);
       if (gen !== measureGenRef.current) return;
+
+      const run = () => {
+        if (gen !== measureGenRef.current || !iframeRef.current) return false;
+        const iframeEl = iframeRef.current;
+        const contentDoc = iframeEl.contentDocument;
+        if (!contentDoc) return false;
+
+        const contentHeight = applyReportPreviewIframeHeight(
+          iframeEl,
+          contentDoc,
+        );
+        if (contentHeight == null) return false;
+        setFrameHeight(contentHeight);
+
+        if (scaled) {
+          const wrap = wrapRef.current;
+          const wrapWidth = wrap?.clientWidth ?? PREVIEW_WIDTH;
+          if (wrapWidth <= 0) return false;
+          const scaleFactor = wrapWidth / PREVIEW_WIDTH;
+          setScaledLayout({
+            scale: scaleFactor,
+            height: Math.ceil(contentHeight * scaleFactor),
+          });
+        } else {
+          setScaledLayout(null);
+        }
+        return true;
+      };
+
       if (run()) return;
       requestAnimationFrame(() => {
         if (gen !== measureGenRef.current) return;
         if (run()) return;
-        window.setTimeout(() => {
+        requestAnimationFrame(() => {
           if (gen !== measureGenRef.current) return;
-          run();
-        }, 50);
+          if (run()) return;
+          window.setTimeout(() => {
+            if (gen !== measureGenRef.current) return;
+            run();
+          }, 50);
+        });
       });
-    });
-  }, [scaled]);
+    }, [scaled, fitToViewport]);
 
-  useEffect(() => {
-    setFrameHeight(null);
-    setScaledLayout(null);
-  }, [srcDoc]);
+    useEffect(() => {
+      setFrameHeight(null);
+      setScaledLayout(null);
+      setReady(false);
+    }, [srcDoc]);
 
-  useEffect(() => {
-    if (!scaled) return;
-    const wrap = wrapRef.current;
-    if (!wrap) return;
-    const ro = new ResizeObserver(() => {
+    useEffect(() => {
+      if (!scaled || fitToViewport) return;
+      const wrap = wrapRef.current;
+      if (!wrap) return;
+      const ro = new ResizeObserver(() => {
+        void syncHeight();
+      });
+      ro.observe(wrap);
+      return () => ro.disconnect();
+    }, [scaled, fitToViewport, syncHeight, srcDoc]);
+
+    const handleLoad = useCallback(async () => {
+      const iframe = iframeRef.current;
+      const doc = iframe?.contentDocument;
+      if (!doc) return;
+
+      await waitForPreviewImages(doc);
+      if (fitToViewport) {
+        setReady(true);
+        return;
+      }
       void syncHeight();
-    });
-    ro.observe(wrap);
-    return () => ro.disconnect();
-  }, [scaled, syncHeight, srcDoc]);
+    }, [syncHeight, fitToViewport]);
 
-  const iframeStyle: CSSProperties = scaled
-    ? {
-        position: "absolute",
-        top: 0,
-        left: 0,
-        width: PREVIEW_WIDTH,
-        height: frameHeight ?? 1,
-        border: "none",
-        display: "block",
-        transformOrigin: "top left",
-        transform: scaledLayout
-          ? `scale(${scaledLayout.scale})`
-          : undefined,
-        opacity: scaledLayout ? 1 : 0,
-        pointerEvents: "none",
-      }
-    : {
-        width: PREVIEW_WIDTH,
-        height: frameHeight ?? 400,
-        border: "none",
-        display: "block",
-        margin: "0 auto",
-        background: "#fff",
-        opacity: frameHeight ? 1 : 0.85,
-      };
+    const isScaled = scaled && !fitToViewport;
 
-  const wrapperStyle: CSSProperties = scaled
-    ? {
-        width: "100%",
-        height: scaledLayout?.height ?? (frameHeight ? Math.ceil(frameHeight * 0.28) : 200),
-        overflow: "hidden",
-        position: "relative",
-        background: "#fff",
-        ...style,
-      }
-    : (style ?? {});
+    const iframeStyle: CSSProperties = fitToViewport
+      ? {
+          width: "100%",
+          height: "100%",
+          border: "none",
+          display: "block",
+          background: "#fff",
+        }
+      : isScaled
+        ? {
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: PREVIEW_WIDTH,
+            height: frameHeight ?? 1,
+            border: "none",
+            display: "block",
+            transformOrigin: "top left",
+            transform: scaledLayout
+              ? `scale(${scaledLayout.scale})`
+              : undefined,
+            opacity: 1,
+            pointerEvents: "none",
+            willChange: "transform",
+          }
+        : {
+            width: PREVIEW_WIDTH,
+            height: frameHeight ?? 400,
+            border: "none",
+            display: "block",
+            margin: "0 auto",
+            background: "#fff",
+            opacity: 1,
+          };
 
-  const content = (
-    <>
-      {!frameHeight && (
-        <span className="template-preview-frame__status">渲染预览…</span>
-      )}
-      <iframe
-        ref={iframeRef}
-        title={title}
-        srcDoc={srcDoc}
-        scrolling="no"
-        onLoad={() => {
-          void syncHeight();
-        }}
-        style={iframeStyle}
-      />
-    </>
-  );
+    const wrapperStyle: CSSProperties = isScaled
+      ? {
+          width: "100%",
+          height:
+            scaledLayout?.height ??
+            (frameHeight ? Math.ceil(frameHeight * 0.28) : 200),
+          overflow: "hidden",
+          position: "relative",
+          background: "#fff",
+          ...style,
+        }
+      : fitToViewport
+        ? {
+            width: "100%",
+            height: "100%",
+            overflow: "hidden",
+            position: "relative",
+            background: "#fff",
+            ...style,
+          }
+        : (style ?? {});
 
-  if (scaled) {
+    const showSkeleton = fitToViewport ? !ready : !scaledLayout;
+
+    const content = (
+      <>
+        {showSkeleton && (
+          <div className="report-preview-frame__skeleton" aria-hidden>
+            <span className="report-preview-frame__status">渲染预览…</span>
+          </div>
+        )}
+        <iframe
+          ref={iframeRef}
+          title={title}
+          srcDoc={srcDoc}
+          scrolling={fitToViewport ? "yes" : "no"}
+          onLoad={handleLoad}
+          style={iframeStyle}
+        />
+      </>
+    );
+
+    if (isScaled || fitToViewport) {
+      return (
+        <div
+          ref={wrapRef}
+          className={`report-preview-frame ${className ?? ""}`}
+          style={wrapperStyle}
+        >
+          {content}
+        </div>
+      );
+    }
+
     return (
-      <div ref={wrapRef} className={className} style={wrapperStyle}>
+      <div className={`report-preview-frame ${className ?? ""}`} style={wrapperStyle}>
         {content}
       </div>
     );
-  }
-
-  return (
-    <div className={className} style={wrapperStyle}>
-      {content}
-    </div>
-  );
   },
 );
 
