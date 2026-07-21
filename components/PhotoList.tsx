@@ -44,6 +44,10 @@ type FilmstripItem = {
   uploadStatus: PhotoEntry["uploadStatus"];
 };
 
+function isPreviewable(photo: PhotoEntry): boolean {
+  return !isHeicLikeFile(photo.file) && !photo.ingestError;
+}
+
 function newId(): string {
   return crypto.randomUUID();
 }
@@ -680,6 +684,23 @@ function PhotoGalleryInner({
   const selected = selectedIndex >= 0 ? photos[selectedIndex]! : null;
   const selectedPreview = selected ? getPreviewUrls(selected) : null;
 
+  const previewablePhotos = useMemo(
+    () => photos.filter(isPreviewable),
+    [photos],
+  );
+  const currentPreviewIndex = fullscreenEntry
+    ? previewablePhotos.findIndex((p) => p.id === fullscreenEntry.id)
+    : -1;
+
+  const previewablePhotosRef = useRef(previewablePhotos);
+  previewablePhotosRef.current = previewablePhotos;
+  const currentPreviewIndexRef = useRef(currentPreviewIndex);
+  currentPreviewIndexRef.current = currentPreviewIndex;
+  const getPreviewUrlsRef = useRef(getPreviewUrls);
+  getPreviewUrlsRef.current = getPreviewUrls;
+  const fullscreenEntryRef = useRef(fullscreenEntry);
+  fullscreenEntryRef.current = fullscreenEntry;
+
   const filmstripItems = useMemo((): FilmstripItem[] => {
     void previewRevision;
     return photos.map((p, index) => {
@@ -732,6 +753,35 @@ function PhotoGalleryInner({
       setFullscreenEntry(selected);
     }
   }, [selected, selectedPreview]);
+
+  const handleFullscreenPrev = useCallback(() => {
+    if (!fullscreenEntryRef.current || previewablePhotosRef.current.length <= 1) return;
+    const idx = currentPreviewIndexRef.current;
+    const photos = previewablePhotosRef.current;
+    const prevIndex = idx <= 0 ? photos.length - 1 : idx - 1;
+    const prev = photos[prevIndex];
+    if (!prev) return;
+    const stageUrl = getPreviewUrlsRef.current(prev).stageUrl ?? null;
+    setFullscreenStageUrl(stageUrl);
+    setFullscreenEntry(prev);
+  }, []);
+
+  const handleFullscreenNext = useCallback(() => {
+    if (!fullscreenEntryRef.current || previewablePhotosRef.current.length <= 1) return;
+    const idx = currentPreviewIndexRef.current;
+    const photos = previewablePhotosRef.current;
+    const nextIndex = idx >= photos.length - 1 ? 0 : idx + 1;
+    const next = photos[nextIndex];
+    if (!next) return;
+    const stageUrl = getPreviewUrlsRef.current(next).stageUrl ?? null;
+    setFullscreenStageUrl(stageUrl);
+    setFullscreenEntry(next);
+  }, []);
+
+  const handleFullscreenClose = useCallback(() => {
+    setFullscreenEntry(null);
+    setFullscreenStageUrl(null);
+  }, []);
 
   const retryUpload = useCallback(
     (photo: PhotoEntry) => {
@@ -798,6 +848,27 @@ function PhotoGalleryInner({
         onConfirm={() => {
           const p = photoDeleteTarget;
           if (!p) return;
+
+          if (fullscreenEntry?.id === p.id) {
+            const remainingPreviewable = previewablePhotos.filter(
+              (x) => x.id !== p.id,
+            );
+            if (remainingPreviewable.length === 0) {
+              setFullscreenEntry(null);
+              setFullscreenStageUrl(null);
+            } else {
+              const fallbackIndex = Math.min(
+                Math.max(0, currentPreviewIndex),
+                remainingPreviewable.length - 1,
+              );
+              const next = remainingPreviewable[fallbackIndex];
+              if (next) {
+                setFullscreenStageUrl(getPreviewUrls(next).stageUrl ?? null);
+                setFullscreenEntry(next);
+              }
+            }
+          }
+
           void deleteRemoteBlob(p.remoteUrl);
           uploadInFlight.current.delete(p.id);
           URL.revokeObjectURL(p.blobUrl);
@@ -815,10 +886,15 @@ function PhotoGalleryInner({
               fullscreenStageUrl ?? pickFullscreenPreviewUrl(fullscreenEntry)
             }
             fileName={fullscreenEntry.logicalName}
-            onClose={() => {
-              setFullscreenEntry(null);
-              setFullscreenStageUrl(null);
-            }}
+            currentIndex={currentPreviewIndex}
+            total={previewablePhotos.length}
+            onClose={handleFullscreenClose}
+            onPrev={
+              previewablePhotos.length > 1 ? handleFullscreenPrev : undefined
+            }
+            onNext={
+              previewablePhotos.length > 1 ? handleFullscreenNext : undefined
+            }
           />
         )}
     </>
