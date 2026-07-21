@@ -1,8 +1,8 @@
 import { generateDynamicBodyHtml } from "@/lib/agent/generate-dynamic-body";
 import {
-  checkCanGenerate,
+  consumeGenerationQuota,
   QuotaExceededError,
-  recordGenerateUsage,
+  refundGenerationQuota,
 } from "@/lib/server/entitlements";
 import { assembleFullDocument } from "@/lib/report/assemble";
 import {
@@ -85,29 +85,48 @@ export async function POST(request: Request) {
     } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    await checkCanGenerate(supabase, user.id);
+    // Atomically consume one quota slot BEFORE generating: the DB checks the
+    // monthly count and inserts the usage row in a single transaction, so
+    // concurrent requests cannot race past the free-tier limit (issue #15).
+    const usageEventId = await consumeGenerationQuota(user.id);
 
-    const dynamicBodyHtml = await generateDynamicBodyHtml({
-      biweeklyDateRange,
-      englishClassName,
-      subTitle,
-      introHtml,
-      bodyHtml,
-      photoLogicalNames,
-      templateId,
-    });
+    let dynamicBodyHtml: string;
+    let fullHtml: string;
+    try {
+      dynamicBodyHtml = await generateDynamicBodyHtml({
+        biweeklyDateRange,
+        englishClassName,
+        subTitle,
+        introHtml,
+        bodyHtml,
+        photoLogicalNames,
+        templateId,
+      });
 
-    const shell = readTemplateShell(templateId);
-    const footer = readReferenceFooter();
-    const fullHtml = assembleFullDocument(shell, footer, {
-      biweeklyDateRange,
-      englishClassName,
-      subTitle,
-      introHtml,
-      dynamicBodyHtml,
-    });
-
-    await recordGenerateUsage(user.id);
+      const shell = readTemplateShell(templateId);
+      const footer = readReferenceFooter();
+      fullHtml = assembleFullDocument(shell, footer, {
+        biweeklyDateRange,
+        englishClassName,
+        subTitle,
+        introHtml,
+        dynamicBodyHtml,
+      });
+    } catch (err) {
+      // Refund the consumed slot: failed generations must not burn quota
+      // (same semantics as the old record-on-success flow).
+      try {
+        await refundGenerationQuota(user.id, usageEventId);
+      } catch (refundErr) {
+        console.error("[generate] quota refund failed", {
+          userId: user.id,
+          usageEventId,
+          error:
+            refundErr instanceof Error ? refundErr.message : String(refundErr),
+        });
+      }
+      throw err;
+    }
 
     return NextResponse.json({ dynamicBodyHtml, fullHtml });
   } catch (err) {
