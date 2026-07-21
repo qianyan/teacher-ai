@@ -69,6 +69,7 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
   const [isHydrating, setIsHydrating] = useState(true);
   const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null);
   const [draftError, setDraftError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [history, setHistory] = useState<HistoryRecord[]>([]);
 
   const stateRef = useRef({
@@ -115,6 +116,8 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
 
   const photoSig = useMemo(() => photoPersistSignature(photos), [photos]);
 
+  const inFlightSavesRef = useRef(0);
+
   const applyHydratedState = useCallback((h: HydratedEditorState) => {
     const s = settersRef.current;
     s.setTemplateId(h.templateId);
@@ -128,6 +131,8 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
   }, []);
 
   const persistDraft = useCallback(async () => {
+    inFlightSavesRef.current += 1;
+    setIsSaving(inFlightSavesRef.current > 0);
     try {
       const snap = snapshotFromState(stateRef.current);
       await putDraft(snap);
@@ -140,6 +145,9 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
           ? "浏览器存储空间不足，请删除部分历史记录或缩小图片。"
           : msg;
       setDraftError(quota);
+    } finally {
+      inFlightSavesRef.current = Math.max(0, inFlightSavesRef.current - 1);
+      setIsSaving(inFlightSavesRef.current > 0);
     }
   }, []);
 
@@ -211,9 +219,21 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
     };
     document.addEventListener("visibilitychange", onHidden);
     window.addEventListener("pagehide", flushDraft);
+
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      // If a save is currently in flight, prompt the user to wait before leaving.
+      // Modern browsers show a generic confirmation; the message itself is ignored.
+      if (inFlightSavesRef.current === 0) return;
+      flushDraft();
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+
     return () => {
       document.removeEventListener("visibilitychange", onHidden);
       window.removeEventListener("pagehide", flushDraft);
+      window.removeEventListener("beforeunload", onBeforeUnload);
     };
   }, [flushDraft]);
 
@@ -276,6 +296,7 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
     isHydrating,
     draftSavedAt,
     draftError,
+    isSaving,
     history,
     recordHistoryAfterGenerate,
     loadHistoryEntry,

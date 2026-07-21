@@ -11,6 +11,7 @@ import { memo, useCallback, useMemo } from "react";
 type Props = {
   draftSavedAt: number | null;
   draftError: string | null;
+  isSaving?: boolean;
   onClearDraft: () => void | Promise<void>;
   historyCount: number;
   historySidebarOpen: boolean;
@@ -22,6 +23,7 @@ export const AppHeader = memo(AppHeaderInner);
 function AppHeaderInner({
   draftSavedAt,
   draftError,
+  isSaving,
   onClearDraft,
   historyCount,
   historySidebarOpen,
@@ -62,6 +64,7 @@ function AppHeaderInner({
         <DraftStatusChip
           draftSavedAt={draftSavedAt}
           draftError={draftError}
+          isSaving={isSaving}
           onClearDraft={onClearDraft}
         />
         <button
