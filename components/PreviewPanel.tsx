@@ -256,43 +256,31 @@ function PreviewPanelInner({ fullHtml, photos }: Props) {
             <div
               onClick={(e) => e.stopPropagation()}
               style={{
-                display: "flex",
-                flexDirection: "column",
                 flex: "1 1 0",
                 minHeight: 0,
                 width: "100%",
                 maxWidth: "100%",
-                margin: "0 auto",
-                overflow: "hidden",
+                overflow: "auto",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "flex-start",
               }}
             >
               <div
                 style={{
-                  flex: "1 1 0",
-                  minHeight: 0,
-                  display: "flex",
-                  flexDirection: "column",
-                  overflow: "hidden",
+                  width: "100%",
+                  maxWidth: 1080,
                   background: "var(--bg-gradient)",
                   borderRadius: "var(--radius)",
-                  padding: "12px 16px 16px",
+                  padding: 12,
                   boxShadow: "var(--shadow-md)",
+                  margin: "12px 0",
                 }}
               >
-                <iframe
-                  title="preview-fullscreen"
+                <ReportPreviewIframe
                   srcDoc={srcDoc}
-                  style={{
-                    flex: "1 1 0",
-                    minHeight: 0,
-                    width: 1080,
-                    maxWidth: "100%",
-                    height: "100%",
-                    alignSelf: "center",
-                    border: "none",
-                    display: "block",
-                    background: "#fff",
-                  }}
+                  title="preview-fullscreen"
+                  scaled
                 />
               </div>
             </div>
