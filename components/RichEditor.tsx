@@ -26,6 +26,7 @@ function RichEditorInner({
   onChangeRef.current = onChangeHtml;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingHtmlRef = useRef<string | null>(null);
+  const surfaceRef = useRef<HTMLDivElement>(null);
 
   const flushPending = () => {
     if (debounceRef.current) {
@@ -65,6 +66,18 @@ function RichEditorInner({
     onBlur: () => {
       flushPending();
     },
+    onFocus: () => {
+      // When the virtual keyboard opens on phones, the editor can end up
+      // hidden behind it. After the keyboard animates in, scroll the editor
+      // surface back into the visible viewport. Desktop focus is untouched.
+      window.setTimeout(() => {
+        if (!window.matchMedia("(max-width: 720px)").matches) return;
+        surfaceRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 350);
+    },
   });
 
   useEffect(() => {
@@ -83,6 +96,7 @@ function RichEditorInner({
     <div className="rich-editor-wrap">
       <label className="app-label">{label}</label>
       <div
+        ref={surfaceRef}
         className="rich-editor-surface"
         style={
           {
