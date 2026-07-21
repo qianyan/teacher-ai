@@ -2008,11 +2008,11 @@ a:hover {
 }
 
 .photo-preview-modal__nav--prev {
-  left: -60px;
+  left: 12px;
 }
 
 .photo-preview-modal__nav--next {
-  right: -60px;
+  right: 12px;
 }
 
 @media (max-width: 640px) {

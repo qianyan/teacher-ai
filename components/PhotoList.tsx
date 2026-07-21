@@ -701,32 +701,6 @@ function PhotoGalleryInner({
   const fullscreenEntryRef = useRef(fullscreenEntry);
   fullscreenEntryRef.current = fullscreenEntry;
 
-  const lastValidPreviewIndexRef = useRef(currentPreviewIndex);
-  useEffect(() => {
-    if (currentPreviewIndex >= 0) {
-      lastValidPreviewIndexRef.current = currentPreviewIndex;
-    }
-  }, [currentPreviewIndex]);
-
-  useEffect(() => {
-    if (!fullscreenEntry) return;
-    if (photos.some((p) => p.id === fullscreenEntry.id)) return;
-    if (previewablePhotos.length === 0) {
-      setFullscreenEntry(null);
-      setFullscreenStageUrl(null);
-      return;
-    }
-    const fallbackIndex = Math.min(
-      Math.max(0, lastValidPreviewIndexRef.current),
-      previewablePhotos.length - 1,
-    );
-    const next = previewablePhotos[fallbackIndex];
-    if (next) {
-      setFullscreenStageUrl(getPreviewUrls(next).stageUrl ?? null);
-      setFullscreenEntry(next);
-    }
-  }, [fullscreenEntry, photos, previewablePhotos, getPreviewUrls]);
-
   const filmstripItems = useMemo((): FilmstripItem[] => {
     void previewRevision;
     return photos.map((p, index) => {
@@ -874,6 +848,27 @@ function PhotoGalleryInner({
         onConfirm={() => {
           const p = photoDeleteTarget;
           if (!p) return;
+
+          if (fullscreenEntry?.id === p.id) {
+            const remainingPreviewable = previewablePhotos.filter(
+              (x) => x.id !== p.id,
+            );
+            if (remainingPreviewable.length === 0) {
+              setFullscreenEntry(null);
+              setFullscreenStageUrl(null);
+            } else {
+              const fallbackIndex = Math.min(
+                Math.max(0, currentPreviewIndex),
+                remainingPreviewable.length - 1,
+              );
+              const next = remainingPreviewable[fallbackIndex];
+              if (next) {
+                setFullscreenStageUrl(getPreviewUrls(next).stageUrl ?? null);
+                setFullscreenEntry(next);
+              }
+            }
+          }
+
           void deleteRemoteBlob(p.remoteUrl);
           uploadInFlight.current.delete(p.id);
           URL.revokeObjectURL(p.blobUrl);
