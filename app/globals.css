@@ -709,7 +709,8 @@ a:hover {
   border-radius: 0;
 }
 
-.template-preview-frame {
+.template-preview-frame,
+.report-preview-frame {
   position: relative;
   display: flex;
   align-items: center;
@@ -820,15 +821,6 @@ a:hover {
   border-radius: 8px;
   overflow: hidden;
   box-shadow: var(--shadow-md);
-}
-
-.report-preview-frame {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 120px;
-  background: var(--bg);
 }
 
 .report-preview-frame__skeleton {

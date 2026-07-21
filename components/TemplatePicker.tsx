@@ -6,7 +6,8 @@ import {
   REPORT_TEMPLATES,
   type ReportTemplateId,
 } from "@/lib/report/templates";
-import { memo, useEffect, useState } from "react";
+import { injectViewportForFullscreen } from "@/lib/report/assemble";
+import { memo, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 const previewCache = new Map<ReportTemplateId, string>();
@@ -30,12 +31,14 @@ async function fetchPreviewHtml(templateId: ReportTemplateId): Promise<string> {
 type TemplatePreviewFrameProps = {
   templateId: ReportTemplateId;
   scaled?: boolean;
+  fitToViewport?: boolean;
   className?: string;
 };
 
 function TemplatePreviewFrameInner({
   templateId,
   scaled = true,
+  fitToViewport = false,
   className,
 }: TemplatePreviewFrameProps) {
   const [srcDoc, setSrcDoc] = useState<string>("");
@@ -67,6 +70,11 @@ function TemplatePreviewFrameInner({
     };
   }, [templateId]);
 
+  const displaySrcDoc = useMemo(
+    () => (fitToViewport ? injectViewportForFullscreen(srcDoc) : srcDoc),
+    [srcDoc, fitToViewport],
+  );
+
   if (loading) {
     return (
       <div
@@ -90,9 +98,10 @@ function TemplatePreviewFrameInner({
 
   return (
     <ReportPreviewIframe
-      srcDoc={srcDoc}
+      srcDoc={displaySrcDoc}
       title="主题版式预览"
-      scaled={scaled}
+      scaled={scaled && !fitToViewport}
+      fitToViewport={fitToViewport}
       className={className}
     />
   );
@@ -232,13 +241,13 @@ function TemplatePickerInner({
               关闭
             </button>
             <div
-              className="template-preview-modal__body preview-scroll-well"
+              className="template-preview-modal__body template-preview-modal__body--fit"
               onClick={(e) => e.stopPropagation()}
             >
               <TemplatePreviewFrame
                 templateId={templateId}
-                scaled={true}
-                className="template-preview-modal__frame"
+                fitToViewport
+                className="template-preview-modal__frame template-preview-modal__frame--fit"
               />
             </div>
           </div>,

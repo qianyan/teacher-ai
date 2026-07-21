@@ -215,7 +215,7 @@ const ReportPreviewIframeInner = forwardRef<HTMLIFrameElement, Props>(
           }
         : (style ?? {});
 
-    const showSkeleton = fitToViewport ? !ready : !scaledLayout;
+    const showSkeleton = fitToViewport ? !ready : scaled ? !scaledLayout : !frameHeight;
 
     const content = (
       <>
