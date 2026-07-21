@@ -62,19 +62,44 @@ export async function getUsageSummary(
   return { plan, limit, used, remaining: Math.max(0, limit - used) };
 }
 
-export async function checkCanGenerate(supabase: UserClient, userId: string): Promise<void> {
-  const usage = await getUsageSummary(supabase, userId);
-  if (usage.plan === "pro") return;
-  if (usage.remaining !== null && usage.remaining <= 0) {
-    throw new QuotaExceededError(usage.limit ?? getFreeTierMonthlyGenerations());
+/**
+ * Atomically consumes one generation from the user's monthly quota.
+ *
+ * The check and the usage insert happen inside a single DB transaction
+ * (pg function `try_consume_generation`, serialized per user via an advisory
+ * lock), so concurrent requests cannot race past the free-tier limit.
+ *
+ * Returns the inserted usage_events id; pass it to refundGenerationQuota if
+ * the generation itself fails so failed attempts do not burn quota.
+ * Throws QuotaExceededError when the monthly limit is already reached.
+ */
+export async function consumeGenerationQuota(userId: string): Promise<string> {
+  const limit = getFreeTierMonthlyGenerations();
+  const { getSupabaseAdminClient } = await import("@/lib/server/supabase-admin");
+  const { data, error } = await getSupabaseAdminClient().rpc(
+    "try_consume_generation",
+    { p_user_id: userId, p_limit: limit },
+  );
+  if (error) throw new Error(error.message);
+  if (typeof data !== "string" || !data) {
+    throw new QuotaExceededError(limit);
   }
+  return data;
 }
 
-export async function recordGenerateUsage(userId: string): Promise<void> {
+/**
+ * Refunds a previously consumed generation (deletes the usage_events row).
+ * Best-effort: callers should log and continue when this fails.
+ */
+export async function refundGenerationQuota(
+  userId: string,
+  eventId: string,
+): Promise<void> {
   const { getSupabaseAdminClient } = await import("@/lib/server/supabase-admin");
-  const { error } = await getSupabaseAdminClient().from("usage_events").insert({
-    user_id: userId,
-    action: "generate",
-  });
+  const { error } = await getSupabaseAdminClient()
+    .from("usage_events")
+    .delete()
+    .eq("id", eventId)
+    .eq("user_id", userId);
   if (error) throw new Error(error.message);
 }
