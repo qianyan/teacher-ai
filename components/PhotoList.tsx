@@ -44,6 +44,10 @@ type FilmstripItem = {
   uploadStatus: PhotoEntry["uploadStatus"];
 };
 
+function isPreviewable(photo: PhotoEntry): boolean {
+  return !isHeicLikeFile(photo.file) && !photo.ingestError;
+}
+
 function newId(): string {
   return crypto.randomUUID();
 }
@@ -680,6 +684,14 @@ function PhotoGalleryInner({
   const selected = selectedIndex >= 0 ? photos[selectedIndex]! : null;
   const selectedPreview = selected ? getPreviewUrls(selected) : null;
 
+  const previewablePhotos = useMemo(
+    () => photos.filter(isPreviewable),
+    [photos],
+  );
+  const currentPreviewIndex = fullscreenEntry
+    ? previewablePhotos.findIndex((p) => p.id === fullscreenEntry.id)
+    : -1;
+
   const filmstripItems = useMemo((): FilmstripItem[] => {
     void previewRevision;
     return photos.map((p, index) => {
@@ -732,6 +744,32 @@ function PhotoGalleryInner({
       setFullscreenEntry(selected);
     }
   }, [selected, selectedPreview]);
+
+  const handleFullscreenPrev = useCallback(() => {
+    if (!fullscreenEntry || previewablePhotos.length <= 1) return;
+    const prevIndex =
+      currentPreviewIndex <= 0
+        ? previewablePhotos.length - 1
+        : currentPreviewIndex - 1;
+    const prev = previewablePhotos[prevIndex];
+    if (!prev) return;
+    const stageUrl = getPreviewUrls(prev).stageUrl ?? null;
+    setFullscreenStageUrl(stageUrl);
+    setFullscreenEntry(prev);
+  }, [currentPreviewIndex, fullscreenEntry, previewablePhotos, getPreviewUrls]);
+
+  const handleFullscreenNext = useCallback(() => {
+    if (!fullscreenEntry || previewablePhotos.length <= 1) return;
+    const nextIndex =
+      currentPreviewIndex >= previewablePhotos.length - 1
+        ? 0
+        : currentPreviewIndex + 1;
+    const next = previewablePhotos[nextIndex];
+    if (!next) return;
+    const stageUrl = getPreviewUrls(next).stageUrl ?? null;
+    setFullscreenStageUrl(stageUrl);
+    setFullscreenEntry(next);
+  }, [currentPreviewIndex, fullscreenEntry, previewablePhotos, getPreviewUrls]);
 
   const retryUpload = useCallback(
     (photo: PhotoEntry) => {
@@ -815,10 +853,18 @@ function PhotoGalleryInner({
               fullscreenStageUrl ?? pickFullscreenPreviewUrl(fullscreenEntry)
             }
             fileName={fullscreenEntry.logicalName}
+            currentIndex={currentPreviewIndex}
+            total={previewablePhotos.length}
             onClose={() => {
               setFullscreenEntry(null);
               setFullscreenStageUrl(null);
             }}
+            onPrev={
+              previewablePhotos.length > 1 ? handleFullscreenPrev : undefined
+            }
+            onNext={
+              previewablePhotos.length > 1 ? handleFullscreenNext : undefined
+            }
           />
         )}
     </>

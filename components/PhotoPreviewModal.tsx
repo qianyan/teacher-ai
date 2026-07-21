@@ -1,19 +1,34 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+const SWIPE_THRESHOLD = 50;
 
 type Props = {
   imageUrl: string;
   fileName: string;
+  currentIndex: number;
+  total: number;
   onClose: () => void;
+  onPrev?: () => void;
+  onNext?: () => void;
 };
 
-export function PhotoPreviewModal({ imageUrl, fileName, onClose }: Props) {
+export function PhotoPreviewModal({
+  imageUrl,
+  fileName,
+  currentIndex,
+  total,
+  onClose,
+  onPrev,
+  onNext,
+}: Props) {
   const [mounted, setMounted] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -33,12 +48,45 @@ export function PhotoPreviewModal({ imageUrl, fileName, onClose }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowLeft") onPrev?.();
+      else if (e.key === "ArrowRight") onNext?.();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, onPrev, onNext]);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    if (!touch) return;
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  }, []);
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      const start = touchStartRef.current;
+      const touch = e.changedTouches[0];
+      if (!start || !touch) return;
+      touchStartRef.current = null;
+
+      const deltaX = touch.clientX - start.x;
+      const deltaY = touch.clientY - start.y;
+      const absX = Math.abs(deltaX);
+      const absY = Math.abs(deltaY);
+
+      if (absX < SWIPE_THRESHOLD || absX <= absY) return;
+
+      if (deltaX > 0) {
+        onPrev?.();
+      } else {
+        onNext?.();
+      }
+    },
+    [onPrev, onNext],
+  );
 
   if (!mounted || typeof document === "undefined") return null;
+
+  const counterText = `${currentIndex + 1} / ${total}`;
 
   return createPortal(
     <div
@@ -47,11 +95,48 @@ export function PhotoPreviewModal({ imageUrl, fileName, onClose }: Props) {
       aria-label="照片全屏预览"
       className="photo-preview-modal"
       onClick={onClose}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
       <div
         className="photo-preview-modal__frame"
         onClick={(e) => e.stopPropagation()}
       >
+        <span
+          className="photo-preview-modal__counter"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {counterText}
+        </span>
+
+        {total > 1 && onPrev && (
+          <button
+            type="button"
+            className="photo-preview-modal__nav photo-preview-modal__nav--prev"
+            aria-label="上一张"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPrev();
+            }}
+          >
+            ‹
+          </button>
+        )}
+        {total > 1 && onNext && (
+          <button
+            type="button"
+            className="photo-preview-modal__nav photo-preview-modal__nav--next"
+            aria-label="下一张"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNext();
+            }}
+          >
+            ›
+          </button>
+        )}
+
         {!loaded && !failed && (
           <div className="photo-preview-modal__loading" aria-hidden>
             <span className="photo-stage-skeleton photo-preview-modal__spinner" />
