@@ -62,13 +62,12 @@ type WritePane = "intro" | "body";
 const STEPS: {
   id: WorkbenchStep;
   label: string;
-  sticker: string;
   hint: string;
 }[] = [
-  { id: "meta", label: "版面", sticker: "01", hint: "日期与标题" },
-  { id: "write", label: "撰文", sticker: "02", hint: "开篇与正文" },
-  { id: "photos", label: "照片", sticker: "03", hint: "导入与生成" },
-  { id: "preview", label: "预览", sticker: "04", hint: "导出长图" },
+  { id: "meta", label: "版面", hint: "日期与标题" },
+  { id: "write", label: "撰文", hint: "开篇与正文" },
+  { id: "photos", label: "照片", hint: "导入与生成" },
+  { id: "preview", label: "预览", hint: "导出长图" },
 ];
 
 type Props = {
@@ -201,7 +200,7 @@ function ReportWorkbenchInner({
                   aria-current={isActive ? "step" : undefined}
                 >
                   <span className="workbench-step__sticker" aria-hidden>
-                    {s.sticker}
+                    <StepIcon id={s.id} />
                   </span>
                   <span className="workbench-step__body">
                     <span className="workbench-step__label">{s.label}</span>
@@ -445,6 +444,65 @@ function ReportWorkbenchInner({
         )}
       </div>
     </div>
+  );
+}
+
+function StepIcon({ id }: { id: WorkbenchStep }) {
+  switch (id) {
+    case "meta":
+      return <IconStepLayout />;
+    case "write":
+      return <IconStepPen />;
+    case "photos":
+      return <IconStepImage />;
+    case "preview":
+      return <IconStepEye />;
+  }
+}
+
+function IconStepLayout() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.75" />
+      <path d="M3 9h18M9 21V9" stroke="currentColor" strokeWidth="1.75" />
+    </svg>
+  );
+}
+
+function IconStepPen() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconStepImage() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.75" />
+      <circle cx="8.5" cy="8.5" r="1.75" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M21 15l-5-5L5 21" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconStepEye() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.75" />
+    </svg>
   );
 }
 
