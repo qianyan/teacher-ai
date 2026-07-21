@@ -220,9 +220,10 @@ const ReportPreviewIframeInner = forwardRef<HTMLIFrameElement, Props>(
     const content = (
       <>
         {showSkeleton && (
-          <div className="report-preview-frame__skeleton" aria-hidden>
-            <span className="report-preview-frame__status">渲染预览…</span>
-          </div>
+          <div className="report-preview-frame__skeleton" aria-hidden />
+        )}
+        {showSkeleton && (
+          <span className="report-preview-frame__status">渲染预览…</span>
         )}
         <iframe
           ref={iframeRef}

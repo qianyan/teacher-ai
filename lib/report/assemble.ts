@@ -77,9 +77,9 @@ export function assembleFullDocument(
  */
 export function injectViewportForFullscreen(srcDoc: string): string {
   const viewportTag = `<meta name="viewport" content="width=1080">`;
-  const viewportRegex = /<meta[^\u003e]*name=["']viewport["'][^\u003e]*>/i;
-  if (viewportRegex.test(srcDoc)) {
-    return srcDoc.replace(viewportRegex, viewportTag);
+  const viewportReplaceRegex = /<meta\s+([^>]*?\s)?name=["']viewport["']([^>]*?)>/i;
+  if (viewportReplaceRegex.test(srcDoc)) {
+    return srcDoc.replace(viewportReplaceRegex, viewportTag);
   }
-  return srcDoc.replace(/<head>/i, `<head>${viewportTag}`);
+  return srcDoc.replace(/<head\b[^>]*>/i, (match) => `${match}${viewportTag}`);
 }
