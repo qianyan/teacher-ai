@@ -1510,6 +1510,23 @@ a:hover {
   height: 0;
 }
 
+/* Mobile editing comfort: iOS Safari force-zooms editable fields whose
+   font-size is below 16px, breaking the layout. Keep editable text at
+   16px on phones and give fingers a little more room. Must stay after the
+   base .tiptap-editor/.app-input rules so the mobile values win. */
+@media (max-width: 720px) {
+  .tiptap-editor {
+    font-size: 16px;
+    padding: 14px;
+    line-height: 1.55;
+  }
+
+  .app-input {
+    font-size: 16px;
+    padding: 12px 14px;
+  }
+}
+
 .app-header .theme-toggle {
   flex-shrink: 0;
 }
