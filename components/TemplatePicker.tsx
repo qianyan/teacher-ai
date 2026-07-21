@@ -237,7 +237,7 @@ function TemplatePickerInner({
             >
               <TemplatePreviewFrame
                 templateId={templateId}
-                scaled={false}
+                scaled={true}
                 className="template-preview-modal__frame"
               />
             </div>
