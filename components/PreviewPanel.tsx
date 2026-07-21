@@ -148,26 +148,14 @@ function PreviewPanelInner({ fullHtml, photos }: Props) {
 
   return (
     <div>
-      <div style={toolbarStyle}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span style={{ fontWeight: 700, fontSize: 16, color: "var(--text)" }}>
-            预览
-          </span>
-          <span
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              color: "var(--text-muted)",
-              background: "var(--bg)",
-              padding: "4px 10px",
-              borderRadius: 999,
-              border: "1px solid var(--border)",
-            }}
-          >
+      <div className="preview-toolbar">
+        <div className="preview-toolbar__meta">
+          <span className="preview-toolbar__title">预览</span>
+          <span className="preview-toolbar__badge">
             1080px 宽
           </span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <div className="preview-toolbar__actions">
           <button
             type="button"
             className="btn btn--secondary preview-toolbar-btn"
@@ -201,15 +189,15 @@ function PreviewPanelInner({ fullHtml, photos }: Props) {
         </div>
       </div>
       {exportError && (
-        <p style={{ color: "var(--danger)", fontSize: 13, margin: "0 0 12px" }}>
+        <p className="preview-export-error">
           {exportError}
         </p>
       )}
-      <div style={frameOuter}>
-        <div style={frameChrome} aria-hidden />
+      <div className="preview-frame-outer">
+        <div className="preview-frame-chrome" aria-hidden />
         <div className="preview-scroll-well">
           {srcDoc ? (
-            <ReportPreviewIframe ref={iframeRef} srcDoc={srcDoc} title="preview" />
+            <ReportPreviewIframe ref={iframeRef} srcDoc={srcDoc} title="preview" scaled />
           ) : (
             <div className="preview-empty" style={emptyState}>
               <div className="preview-empty__icon" aria-hidden>
@@ -316,29 +304,6 @@ function PreviewPanelInner({ fullHtml, photos }: Props) {
 }
 
 export const PreviewPanel = memo(PreviewPanelInner);
-
-const toolbarStyle: CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 16,
-  marginBottom: 12,
-  flexWrap: "wrap",
-};
-
-const frameOuter: CSSProperties = {
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius)",
-  overflow: "hidden",
-  background: "var(--panel-elevated)",
-  boxShadow: "var(--shadow-md)",
-};
-
-const frameChrome: CSSProperties = {
-  height: 8,
-  background: "linear-gradient(180deg, var(--border-subtle) 0%, var(--bg) 100%)",
-  borderBottom: "1px solid var(--border)",
-};
 
 const emptyState: CSSProperties = {
   padding: "48px 24px 56px",
