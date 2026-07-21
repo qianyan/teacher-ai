@@ -835,9 +835,6 @@ a:hover {
   );
   background-size: 200% 100%;
   animation: report-preview-shimmer 1.2s ease-in-out infinite;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 @keyframes report-preview-shimmer {
@@ -851,6 +848,7 @@ a:hover {
 
 .report-preview-frame__status {
   position: absolute;
+  z-index: 3;
   font-size: 12px;
   color: var(--text-muted);
 }
