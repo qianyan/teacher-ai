@@ -692,6 +692,41 @@ function PhotoGalleryInner({
     ? previewablePhotos.findIndex((p) => p.id === fullscreenEntry.id)
     : -1;
 
+  const previewablePhotosRef = useRef(previewablePhotos);
+  previewablePhotosRef.current = previewablePhotos;
+  const currentPreviewIndexRef = useRef(currentPreviewIndex);
+  currentPreviewIndexRef.current = currentPreviewIndex;
+  const getPreviewUrlsRef = useRef(getPreviewUrls);
+  getPreviewUrlsRef.current = getPreviewUrls;
+  const fullscreenEntryRef = useRef(fullscreenEntry);
+  fullscreenEntryRef.current = fullscreenEntry;
+
+  const lastValidPreviewIndexRef = useRef(currentPreviewIndex);
+  useEffect(() => {
+    if (currentPreviewIndex >= 0) {
+      lastValidPreviewIndexRef.current = currentPreviewIndex;
+    }
+  }, [currentPreviewIndex]);
+
+  useEffect(() => {
+    if (!fullscreenEntry) return;
+    if (photos.some((p) => p.id === fullscreenEntry.id)) return;
+    if (previewablePhotos.length === 0) {
+      setFullscreenEntry(null);
+      setFullscreenStageUrl(null);
+      return;
+    }
+    const fallbackIndex = Math.min(
+      Math.max(0, lastValidPreviewIndexRef.current),
+      previewablePhotos.length - 1,
+    );
+    const next = previewablePhotos[fallbackIndex];
+    if (next) {
+      setFullscreenStageUrl(getPreviewUrls(next).stageUrl ?? null);
+      setFullscreenEntry(next);
+    }
+  }, [fullscreenEntry, photos, previewablePhotos, getPreviewUrls]);
+
   const filmstripItems = useMemo((): FilmstripItem[] => {
     void previewRevision;
     return photos.map((p, index) => {
@@ -746,30 +781,33 @@ function PhotoGalleryInner({
   }, [selected, selectedPreview]);
 
   const handleFullscreenPrev = useCallback(() => {
-    if (!fullscreenEntry || previewablePhotos.length <= 1) return;
-    const prevIndex =
-      currentPreviewIndex <= 0
-        ? previewablePhotos.length - 1
-        : currentPreviewIndex - 1;
-    const prev = previewablePhotos[prevIndex];
+    if (!fullscreenEntryRef.current || previewablePhotosRef.current.length <= 1) return;
+    const idx = currentPreviewIndexRef.current;
+    const photos = previewablePhotosRef.current;
+    const prevIndex = idx <= 0 ? photos.length - 1 : idx - 1;
+    const prev = photos[prevIndex];
     if (!prev) return;
-    const stageUrl = getPreviewUrls(prev).stageUrl ?? null;
+    const stageUrl = getPreviewUrlsRef.current(prev).stageUrl ?? null;
     setFullscreenStageUrl(stageUrl);
     setFullscreenEntry(prev);
-  }, [currentPreviewIndex, fullscreenEntry, previewablePhotos, getPreviewUrls]);
+  }, []);
 
   const handleFullscreenNext = useCallback(() => {
-    if (!fullscreenEntry || previewablePhotos.length <= 1) return;
-    const nextIndex =
-      currentPreviewIndex >= previewablePhotos.length - 1
-        ? 0
-        : currentPreviewIndex + 1;
-    const next = previewablePhotos[nextIndex];
+    if (!fullscreenEntryRef.current || previewablePhotosRef.current.length <= 1) return;
+    const idx = currentPreviewIndexRef.current;
+    const photos = previewablePhotosRef.current;
+    const nextIndex = idx >= photos.length - 1 ? 0 : idx + 1;
+    const next = photos[nextIndex];
     if (!next) return;
-    const stageUrl = getPreviewUrls(next).stageUrl ?? null;
+    const stageUrl = getPreviewUrlsRef.current(next).stageUrl ?? null;
     setFullscreenStageUrl(stageUrl);
     setFullscreenEntry(next);
-  }, [currentPreviewIndex, fullscreenEntry, previewablePhotos, getPreviewUrls]);
+  }, []);
+
+  const handleFullscreenClose = useCallback(() => {
+    setFullscreenEntry(null);
+    setFullscreenStageUrl(null);
+  }, []);
 
   const retryUpload = useCallback(
     (photo: PhotoEntry) => {
@@ -855,10 +893,7 @@ function PhotoGalleryInner({
             fileName={fullscreenEntry.logicalName}
             currentIndex={currentPreviewIndex}
             total={previewablePhotos.length}
-            onClose={() => {
-              setFullscreenEntry(null);
-              setFullscreenStageUrl(null);
-            }}
+            onClose={handleFullscreenClose}
             onPrev={
               previewablePhotos.length > 1 ? handleFullscreenPrev : undefined
             }
