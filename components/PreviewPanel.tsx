@@ -11,11 +11,12 @@ import {
   photoPreviewSignature,
   type PhotoEntry,
 } from "@/lib/photos/inject-blobs";
+import { injectViewportForFullscreen } from "@/lib/report/assemble";
 import type { CSSProperties } from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-const SRCDOC_DEBOUNCE_MS = 200;
+const SRCDOC_DEBOUNCE_MS = 80;
 
 type Props = {
   fullHtml: string | null;
@@ -38,6 +39,11 @@ function PreviewPanelInner({ fullHtml, photos }: Props) {
 
   const closeFullscreen = useCallback(() => setFullscreenOpen(false), []);
 
+  const fullscreenSrcDoc = useMemo(() => {
+    if (!srcDoc) return "";
+    return injectViewportForFullscreen(srcDoc);
+  }, [srcDoc]);
+
   useEffect(() => {
     setPortalMounted(true);
   }, []);
@@ -50,6 +56,17 @@ function PreviewPanelInner({ fullHtml, photos }: Props) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [fullscreenOpen, closeFullscreen]);
+
+  // Prevent body scroll while the fullscreen modal is open so touch gestures are
+  // handled by the iframe instead of the background page.
+  useEffect(() => {
+    if (!fullscreenOpen) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [fullscreenOpen]);
 
   useEffect(() => {
     if (!fullHtml) {
@@ -213,74 +230,35 @@ function PreviewPanelInner({ fullHtml, photos }: Props) {
       </div>
       {portalMounted &&
         fullscreenOpen &&
-        srcDoc &&
+        fullscreenSrcDoc &&
         typeof document !== "undefined" &&
         createPortal(
           <div
             role="dialog"
             aria-modal
             aria-label="HTML 全屏预览"
+            className="template-preview-modal"
             onClick={closeFullscreen}
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 25000,
-              boxSizing: "border-box",
-              width: "100vw",
-              height: "100dvh",
-              maxHeight: "100dvh",
-              padding: 12,
-              display: "flex",
-              flexDirection: "column",
-              background: "rgba(0, 0, 0, 0.55)",
-              backdropFilter: "blur(8px)",
-              WebkitBackdropFilter: "blur(8px)",
-            }}
           >
             <button
               type="button"
-              className="btn btn--secondary"
+              className="btn btn--secondary template-preview-modal__close"
               onClick={(e) => {
                 e.stopPropagation();
                 closeFullscreen();
-              }}
-              style={{
-                position: "absolute",
-                top: 12,
-                right: 12,
-                zIndex: 1,
               }}
             >
               关闭
             </button>
             <div
+              className="template-preview-modal__body template-preview-modal__body--fit"
               onClick={(e) => e.stopPropagation()}
-              style={{
-                flex: "1 1 0",
-                minHeight: 0,
-                width: "100%",
-                maxWidth: "100%",
-                overflow: "auto",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "flex-start",
-              }}
             >
-              <div
-                style={{
-                  width: "100%",
-                  maxWidth: 1080,
-                  background: "var(--bg-gradient)",
-                  borderRadius: "var(--radius)",
-                  padding: 12,
-                  boxShadow: "var(--shadow-md)",
-                  margin: "12px 0",
-                }}
-              >
+              <div className="template-preview-modal__frame template-preview-modal__frame--fit">
                 <ReportPreviewIframe
-                  srcDoc={srcDoc}
+                  srcDoc={fullscreenSrcDoc}
                   title="preview-fullscreen"
-                  scaled
+                  fitToViewport
                 />
               </div>
             </div>
