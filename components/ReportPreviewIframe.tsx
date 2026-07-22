@@ -178,6 +178,7 @@ const ReportPreviewIframeInner = forwardRef<HTMLIFrameElement, Props>(
       const doc = iframe?.contentDocument;
       if (!fitToViewport) {
         if (doc?.documentElement) doc.documentElement.style.zoom = "";
+        doc?.defaultView?.scrollTo(0, 0);
         return;
       }
       if (!doc?.documentElement) return;
