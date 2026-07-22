@@ -823,6 +823,13 @@ a:hover {
   box-shadow: var(--shadow-md);
 }
 
+body.preview-fullscreen-open .workbench-panel--preview.app-panel {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  animation: none;
+  transform: none;
+}
+
 /* PreviewPanel: elevate the same in-step iframe into fullscreen (no second mount).
  * No backdrop-filter: Android Chrome shows 报告全屏局部空白 while scrolling an
  * iframe under a blurred host layer (#26). Opaque scrim is enough. */

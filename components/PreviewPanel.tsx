@@ -56,6 +56,18 @@ function PreviewPanelInner({ fullHtml, photos }: Props) {
     };
   }, [fullscreenOpen]);
 
+  // Toggle a body class while fullscreen is open so CSS can nullify
+  // .app-panel backdrop-filter/transform that otherwise constrains
+  // the .preview-fullscreen-host position:fixed to the panel (Chrome 116+).
+  useEffect(() => {
+    if (fullscreenOpen) {
+      document.body.classList.add("preview-fullscreen-open");
+    } else {
+      document.body.classList.remove("preview-fullscreen-open");
+    }
+    return () => document.body.classList.remove("preview-fullscreen-open");
+  }, [fullscreenOpen]);
+
   useEffect(() => {
     if (!fullHtml) {
       setSrcDoc("");
