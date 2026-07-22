@@ -354,7 +354,7 @@ function ReportWorkbenchInner({
           </section>
         )}
 
-        {step === "photos" && (
+        <div style={{ display: step !== "photos" ? "none" : undefined }}>
           <section className="app-panel workbench-panel workbench-panel--photos">
             <header className="workbench-panel__head">
               <p className="workbench-panel__kicker">第三步 · 拼贴照片</p>
@@ -401,9 +401,9 @@ function ReportWorkbenchInner({
               )}
             </div>
           </section>
-        )}
+        </div>
 
-        {step === "preview" && (
+        <div style={{ display: step !== "preview" ? "none" : undefined }}>
           <section className="app-panel workbench-panel workbench-panel--preview">
             <header className="workbench-panel__head">
               <p className="workbench-panel__kicker">第四步 · 导出分享</p>
@@ -441,7 +441,7 @@ function ReportWorkbenchInner({
               </button>
             </div>
           </section>
-        )}
+        </div>
       </div>
     </div>
   );
