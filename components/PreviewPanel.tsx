@@ -11,7 +11,6 @@ import {
   photoPreviewSignature,
   type PhotoEntry,
 } from "@/lib/photos/inject-blobs";
-import { injectViewportForFullscreen } from "@/lib/report/assemble";
 import type { CSSProperties } from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -38,11 +37,6 @@ function PreviewPanelInner({ fullHtml, photos }: Props) {
   photosRef.current = photos;
 
   const closeFullscreen = useCallback(() => setFullscreenOpen(false), []);
-
-  const fullscreenSrcDoc = useMemo(() => {
-    if (!srcDoc) return "";
-    return injectViewportForFullscreen(srcDoc);
-  }, [srcDoc]);
 
   useEffect(() => {
     setPortalMounted(true);
@@ -230,7 +224,7 @@ function PreviewPanelInner({ fullHtml, photos }: Props) {
       </div>
       {portalMounted &&
         fullscreenOpen &&
-        fullscreenSrcDoc &&
+        srcDoc &&
         typeof document !== "undefined" &&
         createPortal(
           <div
@@ -256,7 +250,7 @@ function PreviewPanelInner({ fullHtml, photos }: Props) {
             >
               <div className="template-preview-modal__frame template-preview-modal__frame--fit">
                 <ReportPreviewIframe
-                  srcDoc={fullscreenSrcDoc}
+                  srcDoc={srcDoc}
                   title="preview-fullscreen"
                   fitToViewport
                 />

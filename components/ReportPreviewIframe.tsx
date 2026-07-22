@@ -39,8 +39,9 @@ type Props = {
   scaled?: boolean;
   /**
    * Render the iframe at 100% width/height and let the document scroll itself.
-   * The srcDoc should contain a viewport meta set to width=1080 so the fixed
-   * 1080px layout scales to fit the iframe width.
+   * After load, a CSS `zoom` equal to `iframeWidth / 1080` is applied to the
+   * document element so the fixed 1080px layout scales to fit the iframe width
+   * while the iframe scrolls natively (smooth, no white-patch artifacts).
    */
   fitToViewport?: boolean;
   className?: string;
@@ -126,6 +127,17 @@ const ReportPreviewIframeInner = forwardRef<HTMLIFrameElement, Props>(
       });
     }, [scaled, fitToViewport]);
 
+    /** Scale the iframe's document so the fixed 1080px layout fits its width. */
+    const applyFitZoom = useCallback(() => {
+      if (!fitToViewport) return;
+      const iframe = iframeRef.current;
+      const doc = iframe?.contentDocument;
+      if (!iframe || !doc?.documentElement) return;
+      const width = iframe.clientWidth;
+      if (width <= 0) return;
+      doc.documentElement.style.zoom = String(width / PREVIEW_WIDTH);
+    }, [fitToViewport]);
+
     useEffect(() => {
       setFrameHeight(null);
       setScaledLayout(null);
@@ -143,18 +155,33 @@ const ReportPreviewIframeInner = forwardRef<HTMLIFrameElement, Props>(
       return () => ro.disconnect();
     }, [scaled, fitToViewport, syncHeight, srcDoc]);
 
+    // Re-apply zoom when the iframe (and thus the available width) resizes.
+    useEffect(() => {
+      if (!fitToViewport) return;
+      const iframe = iframeRef.current;
+      if (!iframe) return;
+      const ro = new ResizeObserver(() => {
+        applyFitZoom();
+      });
+      ro.observe(iframe);
+      return () => ro.disconnect();
+    }, [fitToViewport, applyFitZoom, srcDoc]);
+
     const handleLoad = useCallback(async () => {
       const iframe = iframeRef.current;
       const doc = iframe?.contentDocument;
       if (!doc) return;
 
-      await waitForPreviewImages(doc);
       if (fitToViewport) {
+        applyFitZoom();
         setReady(true);
+        await waitForPreviewImages(doc);
+        // Re-apply once images settle in case layout shifted.
+        applyFitZoom();
         return;
       }
       void syncHeight();
-    }, [syncHeight, fitToViewport]);
+    }, [syncHeight, fitToViewport, applyFitZoom]);
 
     const isScaled = scaled && !fitToViewport;
 
@@ -215,7 +242,11 @@ const ReportPreviewIframeInner = forwardRef<HTMLIFrameElement, Props>(
           }
         : (style ?? {});
 
-    const showSkeleton = fitToViewport ? !ready : scaled ? !scaledLayout : !frameHeight;
+    const showSkeleton = fitToViewport
+      ? !ready
+      : scaled
+        ? !scaledLayout
+        : !frameHeight;
 
     const content = (
       <>
