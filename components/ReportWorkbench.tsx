@@ -222,226 +222,240 @@ function ReportWorkbenchInner({
       </nav>
 
       <div className="workbench-stage">
-        {step === "meta" && (
-          <section className="app-panel workbench-panel workbench-panel--meta">
-            <header className="workbench-panel__head">
-              <p className="workbench-panel__kicker">第一步 · 贴好日期徽章</p>
-              <h2 className="app-section-title">版面与日期</h2>
-              <p className="workbench-panel__lede">
-                像手帐扉页一样先定好双周区间与副标题，后面的撰文和照片都会跟着这一版式走。
-              </p>
-            </header>
-            <TemplatePicker
-              templateId={templateId}
-              onTemplateChange={handleTemplateChange}
-              switchHint={templateSwitchHint}
-            />
-            <label className="app-label" htmlFor="english-class-name">
-              英文班级名（大标题，如 Infant D）
-            </label>
-            <input
-              id="english-class-name"
-              type="text"
-              value={englishClassName}
-              onChange={(e) => setEnglishClassName(e.target.value)}
-              className="app-input"
-              style={{ marginBottom: 16 }}
-            />
-            <label className="app-label" htmlFor="biweekly-range">
-              双周日期徽章（中国大陆工作日）
-            </label>
-            <input
-              id="biweekly-range"
-              type="text"
-              value={biweeklyDateRange}
-              onChange={(e) => setBiweeklyDateRange(e.target.value)}
-              className="app-input app-input--narrow"
-              style={{ marginBottom: 16 }}
-            />
-            <label className="app-label" htmlFor="sub-title">
-              副标题（横幅下红字一行）
-            </label>
-            <input
-              id="sub-title"
-              type="text"
-              value={subTitle}
-              onChange={(e) => setSubTitle(e.target.value)}
-              className="app-input"
-              style={{ marginBottom: 0 }}
-            />
-            <div className="workbench-panel__foot">
-              <button
-                type="button"
-                className="btn btn--primary"
-                onClick={() => goToStep("write")}
-              >
-                下一步：撰文
-              </button>
-            </div>
-          </section>
-        )}
-
-        {step === "write" && (
-          <section className="app-panel workbench-panel workbench-panel--write">
-            <header className="workbench-panel__head">
-              <p className="workbench-panel__kicker">第二步 · 写下本周故事</p>
-              <h2 className="app-section-title">开篇与正文</h2>
-              <p className="workbench-panel__lede">
-                一次只打开一个编辑区，减轻页面负担；切换页签时内容会自动保存到草稿。
-              </p>
-            </header>
-            <div
-              className="workbench-write-tabs"
-              role="tablist"
-              aria-label="撰文页签"
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={writePane === "intro"}
-                className={`workbench-write-tab${writePane === "intro" ? " is-active" : ""}`}
-                onClick={() => setWritePane("intro")}
-              >
-                开篇
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={writePane === "body"}
-                className={`workbench-write-tab${writePane === "body" ? " is-active" : ""}`}
-                onClick={() => setWritePane("body")}
-              >
-                结构化正文
-              </button>
-            </div>
-            <div className="workbench-write-pane" role="tabpanel">
-              {writePane === "intro" ? (
-                <RichEditor
-                  key="intro"
-                  label="开篇（白底 intro 区域）"
-                  valueHtml={introHtml}
-                  onChangeHtml={setIntroHtml}
-                  placeholder="问候语与双周概述…"
-                  minHeight={180}
-                />
-              ) : (
-                <RichEditor
-                  key="body"
-                  label="结构化正文（各板块要点，供模型扩展为 section）"
-                  valueHtml={bodyHtml}
-                  onChangeHtml={setBodyHtml}
-                  placeholder="按板块写好要点与照片前缀说明…"
-                  minHeight={320}
-                />
-              )}
-            </div>
-            <div className="workbench-panel__foot workbench-panel__foot--split">
-              <button
-                type="button"
-                className="btn btn--secondary"
-                onClick={() => goToStep("meta")}
-              >
-                上一步
-              </button>
-              <button
-                type="button"
-                className="btn btn--primary"
-                onClick={() => goToStep("photos")}
-              >
-                下一步：照片
-              </button>
-            </div>
-          </section>
-        )}
-
-        <div style={{ display: step !== "photos" ? "none" : undefined }}>
-          <section className="app-panel workbench-panel workbench-panel--photos">
-            <header className="workbench-panel__head">
-              <p className="workbench-panel__kicker">第三步 · 拼贴照片</p>
-              <h2 className="app-section-title">照片与生成</h2>
-              <p className="workbench-panel__lede">
-                导入带前缀序号的照片、排好顺序，全部同步到 Blob 后即可生成 1080px 预览。
-              </p>
-            </header>
-            <PhotoList photos={photos} onChange={setPhotos} />
-            {usageHint && (
-              <p className="workbench-hint workbench-hint--quota">{usageHint}</p>
-            )}
-            {generateBlockedReason && (
-              <p className="workbench-hint workbench-hint--warn">
-                {generateBlockedReason}
-              </p>
-            )}
+        {/*
+          Keep every step panel mounted. Hide inactive ones with CSS that
+          preserves layout width (not display:none) so PhotoList thumbnails
+          and PreviewPanel iframes can decode/measure before the user opens
+          the step — otherwise each visit re-flashes skeletons (issue #20).
+        */}
+        <section
+          className={`app-panel workbench-panel workbench-panel--meta${step === "meta" ? " is-active" : " is-inactive"}`}
+          inert={step !== "meta" ? true : undefined}
+          aria-hidden={step !== "meta"}
+        >
+          <header className="workbench-panel__head">
+            <p className="workbench-panel__kicker">第一步 · 贴好日期徽章</p>
+            <h2 className="app-section-title">版面与日期</h2>
+            <p className="workbench-panel__lede">
+              像手帐扉页一样先定好双周区间与副标题，后面的撰文和照片都会跟着这一版式走。
+            </p>
+          </header>
+          <TemplatePicker
+            templateId={templateId}
+            onTemplateChange={handleTemplateChange}
+            switchHint={templateSwitchHint}
+          />
+          <label className="app-label" htmlFor="english-class-name">
+            英文班级名（大标题，如 Infant D）
+          </label>
+          <input
+            id="english-class-name"
+            type="text"
+            value={englishClassName}
+            onChange={(e) => setEnglishClassName(e.target.value)}
+            className="app-input"
+            style={{ marginBottom: 16 }}
+          />
+          <label className="app-label" htmlFor="biweekly-range">
+            双周日期徽章（中国大陆工作日）
+          </label>
+          <input
+            id="biweekly-range"
+            type="text"
+            value={biweeklyDateRange}
+            onChange={(e) => setBiweeklyDateRange(e.target.value)}
+            className="app-input app-input--narrow"
+            style={{ marginBottom: 16 }}
+          />
+          <label className="app-label" htmlFor="sub-title">
+            副标题（横幅下红字一行）
+          </label>
+          <input
+            id="sub-title"
+            type="text"
+            value={subTitle}
+            onChange={(e) => setSubTitle(e.target.value)}
+            className="app-input"
+            style={{ marginBottom: 0 }}
+          />
+          <div className="workbench-panel__foot">
             <button
               type="button"
-              className="btn btn--primary btn--lg workbench-generate-btn"
-              onClick={onGenerate}
-              disabled={loading || Boolean(generateBlockedReason)}
-              title={generateBlockedReason}
+              className="btn btn--primary"
+              onClick={() => goToStep("write")}
             >
-              {loading ? "生成中…" : "生成预览 HTML"}
+              下一步：撰文
             </button>
-            {error && <p className="text-error">{error}</p>}
-            <div className="workbench-panel__foot workbench-panel__foot--split">
-              <button
-                type="button"
-                className="btn btn--secondary"
-                onClick={() => goToStep("write")}
-              >
-                上一步
-              </button>
-              {fullHtml && (
-                <button
-                  type="button"
-                  className="btn btn--secondary"
-                  onClick={() => goToStep("preview")}
-                >
-                  查看预览
-                </button>
-              )}
-            </div>
-          </section>
-        </div>
+          </div>
+        </section>
 
-        <div style={{ display: step !== "preview" ? "none" : undefined }}>
-          <section className="app-panel workbench-panel workbench-panel--preview">
-            <header className="workbench-panel__head">
-              <p className="workbench-panel__kicker">第四步 · 导出分享</p>
-              <h2 className="app-section-title">预览与导出</h2>
-              {!fullHtml && (
-                <p className="workbench-panel__lede">
-                  请先在「照片」步骤生成预览 HTML，再回来导出长图或下载文件。
-                </p>
-              )}
-            </header>
-            {fullHtml ? (
-              <PreviewPanel fullHtml={fullHtml} photos={photos} />
+        <section
+          className={`app-panel workbench-panel workbench-panel--write${step === "write" ? " is-active" : " is-inactive"}`}
+          inert={step !== "write" ? true : undefined}
+          aria-hidden={step !== "write"}
+        >
+          <header className="workbench-panel__head">
+            <p className="workbench-panel__kicker">第二步 · 写下本周故事</p>
+            <h2 className="app-section-title">开篇与正文</h2>
+            <p className="workbench-panel__lede">
+              一次只打开一个编辑区，减轻页面负担；切换页签时内容会自动保存到草稿。
+            </p>
+          </header>
+          <div
+            className="workbench-write-tabs"
+            role="tablist"
+            aria-label="撰文页签"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={writePane === "intro"}
+              className={`workbench-write-tab${writePane === "intro" ? " is-active" : ""}`}
+              onClick={() => setWritePane("intro")}
+            >
+              开篇
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={writePane === "body"}
+              className={`workbench-write-tab${writePane === "body" ? " is-active" : ""}`}
+              onClick={() => setWritePane("body")}
+            >
+              结构化正文
+            </button>
+          </div>
+          <div className="workbench-write-pane" role="tabpanel">
+            {writePane === "intro" ? (
+              <RichEditor
+                key="intro"
+                label="开篇（白底 intro 区域）"
+                valueHtml={introHtml}
+                onChangeHtml={setIntroHtml}
+                placeholder="问候语与双周概述…"
+                minHeight={180}
+              />
             ) : (
-              <div className="workbench-empty-preview">
-                <span className="workbench-empty-preview__icon" aria-hidden>
-                  ✦
-                </span>
-                <p>尚无预览内容</p>
-                <button
-                  type="button"
-                  className="btn btn--primary"
-                  onClick={() => goToStep("photos")}
-                >
-                  去生成预览
-                </button>
-              </div>
+              <RichEditor
+                key="body"
+                label="结构化正文（各板块要点，供模型扩展为 section）"
+                valueHtml={bodyHtml}
+                onChangeHtml={setBodyHtml}
+                placeholder="按板块写好要点与照片前缀说明…"
+                minHeight={320}
+              />
             )}
-            <div className="workbench-panel__foot">
+          </div>
+          <div className="workbench-panel__foot workbench-panel__foot--split">
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={() => goToStep("meta")}
+            >
+              上一步
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => goToStep("photos")}
+            >
+              下一步：照片
+            </button>
+          </div>
+        </section>
+
+        <section
+          className={`app-panel workbench-panel workbench-panel--photos${step === "photos" ? " is-active" : " is-inactive"}`}
+          inert={step !== "photos" ? true : undefined}
+          aria-hidden={step !== "photos"}
+        >
+          <header className="workbench-panel__head">
+            <p className="workbench-panel__kicker">第三步 · 拼贴照片</p>
+            <h2 className="app-section-title">照片与生成</h2>
+            <p className="workbench-panel__lede">
+              导入带前缀序号的照片、排好顺序，全部同步到 Blob 后即可生成 1080px 预览。
+            </p>
+          </header>
+          <PhotoList photos={photos} onChange={setPhotos} />
+          {usageHint && (
+            <p className="workbench-hint workbench-hint--quota">{usageHint}</p>
+          )}
+          {generateBlockedReason && (
+            <p className="workbench-hint workbench-hint--warn">
+              {generateBlockedReason}
+            </p>
+          )}
+          <button
+            type="button"
+            className="btn btn--primary btn--lg workbench-generate-btn"
+            onClick={onGenerate}
+            disabled={loading || Boolean(generateBlockedReason)}
+            title={generateBlockedReason}
+          >
+            {loading ? "生成中…" : "生成预览 HTML"}
+          </button>
+          {error && <p className="text-error">{error}</p>}
+          <div className="workbench-panel__foot workbench-panel__foot--split">
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={() => goToStep("write")}
+            >
+              上一步
+            </button>
+            {fullHtml && (
               <button
                 type="button"
                 className="btn btn--secondary"
+                onClick={() => goToStep("preview")}
+              >
+                查看预览
+              </button>
+            )}
+          </div>
+        </section>
+
+        <section
+          className={`app-panel workbench-panel workbench-panel--preview${step === "preview" ? " is-active" : " is-inactive"}`}
+          inert={step !== "preview" ? true : undefined}
+          aria-hidden={step !== "preview"}
+        >
+          <header className="workbench-panel__head">
+            <p className="workbench-panel__kicker">第四步 · 导出分享</p>
+            <h2 className="app-section-title">预览与导出</h2>
+            {!fullHtml && (
+              <p className="workbench-panel__lede">
+                请先在「照片」步骤生成预览 HTML，再回来导出长图或下载文件。
+              </p>
+            )}
+          </header>
+          {fullHtml ? (
+            <PreviewPanel fullHtml={fullHtml} photos={photos} />
+          ) : (
+            <div className="workbench-empty-preview">
+              <span className="workbench-empty-preview__icon" aria-hidden>
+                ✦
+              </span>
+              <p>尚无预览内容</p>
+              <button
+                type="button"
+                className="btn btn--primary"
                 onClick={() => goToStep("photos")}
               >
-                返回照片步骤
+                去生成预览
               </button>
             </div>
-          </section>
-        </div>
+          )}
+          <div className="workbench-panel__foot">
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={() => goToStep("photos")}
+            >
+              返回照片步骤
+            </button>
+          </div>
+        </section>
       </div>
     </div>
   );

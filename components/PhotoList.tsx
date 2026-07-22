@@ -262,7 +262,7 @@ function PhotoFilmstripThumb({
         <img
           src={thumbUrl}
           alt=""
-          loading="lazy"
+          loading="eager"
           decoding="async"
           draggable={false}
           style={{

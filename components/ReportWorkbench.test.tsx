@@ -1,24 +1,19 @@
 // @vitest-environment jsdom
 /**
- * Tests for ReportWorkbench fix: keep PhotoList/PreviewPanel mounted on step
- * switch using CSS display:none instead of conditional && rendering.
+ * Issue #20: opening photos/preview steps re-flashes loading UI.
  *
- * User intent: Every time the user opens the photo page or preview page, there
- * is repeated loading / flickering because PhotoList and PreviewPanel were
- * conditionally rendered with React's && operator, so they unmount on step
- * switch and remount on return, destroying usePhotoPreviewCache's thumbnail
- * cache (all blob URLs revoked, cache cleared).
+ * display:none keep-alive preserves React state but still fails UX:
+ * - preview iframe measures wrapWidth=0 while hidden → skeleton on every first paint
+ * - lazy thumbnails under display:none never decode until shown → blank flash
  *
- * Fix: wrap each step section in a div with CSS display:none instead of
- * conditional && rendering, keeping both components always mounted.
+ * Contract: inactive step panels stay mounted, must NOT use display:none,
+ * and must keep a layout width so preview can pre-measure.
  */
 
 import { describe, expect, test, vi } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
 import React from "react";
 
-// Mock next/dynamic so dynamically imported components render a simple stub
-// instead of trying to fetch chunks.
 vi.mock("next/dynamic", () => ({
   default:
     (
@@ -34,7 +29,6 @@ vi.mock("next/dynamic", () => ({
     },
 }));
 
-// Mock RichEditor since it depends on @tiptap/react which needs a DOM.
 vi.mock("@/components/RichEditor", () => ({
   RichEditor: (props: Record<string, unknown>) =>
     React.createElement("div", {
@@ -43,8 +37,12 @@ vi.mock("@/components/RichEditor", () => ({
     }),
 }));
 
-// Mock TemplatePicker since it's interactive but not the focus of this test.
 vi.mock("@/components/TemplatePicker", () => ({
+  TemplatePicker: (props: Record<string, unknown>) =>
+    React.createElement("div", {
+      "data-testid": "template-picker",
+      ...props,
+    }),
   default: (props: Record<string, unknown>) =>
     React.createElement("div", {
       "data-testid": "template-picker",
@@ -53,13 +51,10 @@ vi.mock("@/components/TemplatePicker", () => ({
 }));
 
 import { ReportWorkbench } from "./ReportWorkbench";
+import type { ReportTemplateId } from "@/lib/report/templates";
+import { DEFAULT_TEMPLATE_ID } from "@/lib/report/templates";
 
-/** Click a nav rail step button by its label text. */
 function clickStep(container: HTMLElement, label: string) {
-  const btn = container.querySelector<HTMLButtonElement>(
-    `.workbench-step .workbench-step__label`,
-  );
-  // Find the button whose label matches.
   const labels = container.querySelectorAll<HTMLSpanElement>(
     ".workbench-step__label",
   );
@@ -75,12 +70,9 @@ function clickStep(container: HTMLElement, label: string) {
   throw new Error(`Could not find step button with label "${label}"`);
 }
 
-/** Minimal props that satisfy ReportWorkbenchInner (memo-wrapped). */
-function createMinimalProps(
-  overrides: Record<string, unknown> = {},
-): Record<string, unknown> {
+function createMinimalProps(overrides: Record<string, unknown> = {}) {
   return {
-    templateId: "infant",
+    templateId: DEFAULT_TEMPLATE_ID satisfies ReportTemplateId,
     setTemplateId: vi.fn(),
     biweeklyDateRange: "2026-04-01 ~ 2026-04-14",
     setBiweeklyDateRange: vi.fn(),
@@ -92,14 +84,14 @@ function createMinimalProps(
     setIntroHtml: vi.fn(),
     bodyHtml: "<p>正文</p>",
     setBodyHtml: vi.fn(),
-    photos: [],
+    photos: [] as [],
     setPhotos: vi.fn(),
     fullHtml: "<html><body>preview</body></html>",
     setFullHtml: vi.fn(),
     loading: false,
-    error: null,
-    generateBlockedReason: undefined,
-    usageHint: undefined,
+    error: null as string | null,
+    generateBlockedReason: undefined as string | undefined,
+    usageHint: undefined as string | undefined,
     onGenerate: vi.fn(),
     advanceToPreview: false,
     onAdvanceToPreviewConsumed: vi.fn(),
@@ -107,183 +99,99 @@ function createMinimalProps(
   };
 }
 
-describe("ReportWorkbench — PhotoList/PreviewPanel always-mounted fix", () => {
-  test("photos and preview sections stay mounted when step is meta (display:none)", () => {
-    const props = createMinimalProps();
-    const { container } = render(React.createElement(ReportWorkbench, props));
+function panel(container: HTMLElement, name: string) {
+  return container.querySelector(
+    `.workbench-panel--${name}`,
+  ) as HTMLElement | null;
+}
 
-    // The meta step is the default, so it should be visible.
-    const metaSection = container.querySelector(
-      ".workbench-panel--meta",
-    ) as HTMLElement | null;
-    expect(metaSection).not.toBeNull();
-    expect(metaSection!.style.display).toBe("");
+describe("ReportWorkbench — issue #20 step panel keep-alive", () => {
+  test("all four step panels stay mounted on the meta step", () => {
+    const { container } = render(
+      React.createElement(ReportWorkbench, createMinimalProps()),
+    );
 
-    // The photos section should be in the DOM but hidden.
-    const photosSection = container.querySelector(
-      ".workbench-panel--photos",
-    ) as HTMLElement | null;
-    expect(photosSection).not.toBeNull();
-    // The wrapper div sets display:none when step !== "photos"
-    const photosWrapper = photosSection!.parentElement as HTMLElement | null;
-    expect(photosWrapper).not.toBeNull();
-    expect(photosWrapper!.style.display).toBe("none");
-
-    // The preview section should also be in the DOM but hidden.
-    const previewSection = container.querySelector(
-      ".workbench-panel--preview",
-    ) as HTMLElement | null;
-    expect(previewSection).not.toBeNull();
-    const previewWrapper = previewSection!.parentElement as HTMLElement | null;
-    expect(previewWrapper).not.toBeNull();
-    expect(previewWrapper!.style.display).toBe("none");
+    expect(panel(container, "meta")).not.toBeNull();
+    expect(panel(container, "write")).not.toBeNull();
+    expect(panel(container, "photos")).not.toBeNull();
+    expect(panel(container, "preview")).not.toBeNull();
   });
 
-  test("photos section becomes visible when navigating to photos step", () => {
-    const props = createMinimalProps();
-    const { container } = render(React.createElement(ReportWorkbench, props));
+  test("inactive panels must not use display:none (keeps layout width)", () => {
+    const { container } = render(
+      React.createElement(ReportWorkbench, createMinimalProps()),
+    );
 
-    // Navigate to write step first (to leave meta).
-    clickStep(container, "撰文");
+    const photos = panel(container, "photos")!;
+    const preview = panel(container, "preview")!;
 
-    // Then navigate to photos step.
-    clickStep(container, "照片");
-
-    const photosSection = container.querySelector(
-      ".workbench-panel--photos",
-    ) as HTMLElement | null;
-    expect(photosSection).not.toBeNull();
-    const photosWrapper = photosSection!.parentElement as HTMLElement | null;
-    expect(photosWrapper).not.toBeNull();
-    // display should not be "none" — it should be visible
-    expect(photosWrapper!.style.display).not.toBe("none");
+    expect(photos.classList.contains("is-inactive")).toBe(true);
+    expect(preview.classList.contains("is-inactive")).toBe(true);
+    expect(getComputedStyle(photos).display).not.toBe("none");
+    expect(getComputedStyle(preview).display).not.toBe("none");
+    expect(photos.style.display).not.toBe("none");
+    expect(preview.style.display).not.toBe("none");
+    // No wrapper that hides via display:none either.
+    expect(photos.parentElement?.style.display).not.toBe("none");
+    expect(preview.parentElement?.style.display).not.toBe("none");
   });
 
-  test("photos section stays mounted when navigating away and back", () => {
-    const props = createMinimalProps();
-    const { container } = render(React.createElement(ReportWorkbench, props));
+  test("only the active step panel is marked is-active", () => {
+    const { container } = render(
+      React.createElement(ReportWorkbench, createMinimalProps()),
+    );
 
-    // Navigate to write step, then photos step.
-    clickStep(container, "撰文");
+    expect(panel(container, "meta")!.classList.contains("is-active")).toBe(true);
+    expect(panel(container, "photos")!.classList.contains("is-active")).toBe(
+      false,
+    );
+
     clickStep(container, "照片");
 
-    // Get a reference to the photos element while it's visible.
-    const photosSection = container.querySelector(
-      ".workbench-panel--photos",
-    ) as HTMLElement | null;
-    expect(photosSection).not.toBeNull();
-    const photosWrapper = photosSection!.parentElement as HTMLElement | null;
-    expect(photosWrapper).not.toBeNull();
-    expect(photosWrapper!.style.display).not.toBe("none");
-
-    // Navigate back to write step using the nav rail button.
-    clickStep(container, "撰文");
-
-    // The photos section should still be in the DOM, just hidden.
-    expect(photosWrapper!.style.display).toBe("none");
-    expect(
-      container.contains(photosWrapper!),
-      "photos wrapper should still be in the DOM after navigating away",
-    ).toBe(true);
-
-    // Navigate back to photos step.
-    clickStep(container, "照片");
-
-    // The same element should now be visible again.
-    expect(photosWrapper!.style.display).not.toBe("none");
-    expect(
-      container.contains(photosWrapper!),
-      "photos wrapper should still be the same DOM element",
-    ).toBe(true);
+    expect(panel(container, "meta")!.classList.contains("is-active")).toBe(
+      false,
+    );
+    expect(panel(container, "photos")!.classList.contains("is-active")).toBe(
+      true,
+    );
+    expect(panel(container, "photos")!.classList.contains("is-inactive")).toBe(
+      false,
+    );
   });
 
-  test("preview section stays mounted when navigating away and back", () => {
-    const props = createMinimalProps();
-    const { container } = render(React.createElement(ReportWorkbench, props));
+  test("photos panel DOM node identity survives navigate away and back", () => {
+    const { container } = render(
+      React.createElement(ReportWorkbench, createMinimalProps()),
+    );
 
-    // Navigate to write, then photos.
+    clickStep(container, "照片");
+    const photosEl = panel(container, "photos")!;
+    expect(photosEl.classList.contains("is-active")).toBe(true);
+
     clickStep(container, "撰文");
+    expect(photosEl.isConnected).toBe(true);
+    expect(photosEl.classList.contains("is-inactive")).toBe(true);
+
     clickStep(container, "照片");
-
-    // Click "查看预览" button to go to preview step (fullHtml is truthy).
-    // The button is inside the workbench-panel--photos footer.
-    const photosPanel = container.querySelector(".workbench-panel--photos");
-    // The last btn in the photos footer is "查看预览" when fullHtml is set.
-    const previewBtns =
-      photosPanel!.querySelectorAll<HTMLButtonElement>(
-        '.workbench-panel__foot button',
-      );
-    const viewPreviewBtn = previewBtns[previewBtns.length - 1];
-    expect(viewPreviewBtn!.textContent).toContain("查看预览");
-    fireEvent.click(viewPreviewBtn!);
-
-    // Get a reference to the preview element while it's visible.
-    const previewSection = container.querySelector(
-      ".workbench-panel--preview",
-    ) as HTMLElement | null;
-    expect(previewSection).not.toBeNull();
-    const previewWrapper = previewSection!.parentElement as HTMLElement | null;
-    expect(previewWrapper).not.toBeNull();
-    expect(previewWrapper!.style.display).not.toBe("none");
-
-    // Navigate back to photos step via the nav rail button.
-    clickStep(container, "照片");
-
-    // Preview section should still be in DOM, just hidden.
-    expect(previewWrapper!.style.display).toBe("none");
-    expect(
-      container.contains(previewWrapper!),
-      "preview wrapper should still be in the DOM after navigating away",
-    ).toBe(true);
-
-    // Navigate back to preview step via the "查看预览" button (in photos panel).
-    const previewBtns2 =
-      photosPanel!.querySelectorAll<HTMLButtonElement>(
-        '.workbench-panel__foot button',
-      );
-    const viewPreviewBtn2 = previewBtns2[previewBtns2.length - 1];
-    expect(viewPreviewBtn2!.textContent).toContain("查看预览");
-    fireEvent.click(viewPreviewBtn2!);
-
-    // Same element visible again.
-    expect(previewWrapper!.style.display).not.toBe("none");
-    expect(
-      container.contains(previewWrapper!),
-      "preview wrapper should still be the same DOM element",
-    ).toBe(true);
+    expect(panel(container, "photos")).toBe(photosEl);
+    expect(photosEl.classList.contains("is-active")).toBe(true);
   });
 
-  test("usePhotoPreviewCache is not destroyed (PhotoList stays mounted)", () => {
-    // This test verifies the structural condition that enables cache survival:
-    // PhotoList is inside the always-mounted wrapper div. If the old && pattern
-    // were used, PhotoList would unmount when step !== "photos", destroying
-    // the cache. With the CSS display:none wrapper, the PhotoList stays mounted.
-    const props = createMinimalProps();
-    const { container } = render(React.createElement(ReportWorkbench, props));
+  test("preview panel DOM node identity survives navigate away and back", () => {
+    const { container } = render(
+      React.createElement(ReportWorkbench, createMinimalProps()),
+    );
 
-    // On the meta step, the photos panel is hidden but present.
-    const photosSection = container.querySelector(
-      ".workbench-panel--photos",
-    ) as HTMLElement | null;
-    expect(photosSection).not.toBeNull();
+    clickStep(container, "预览");
+    const previewEl = panel(container, "preview")!;
+    expect(previewEl.classList.contains("is-active")).toBe(true);
 
-    // Navigate to write, then photos.
-    clickStep(container, "撰文");
     clickStep(container, "照片");
+    expect(previewEl.isConnected).toBe(true);
+    expect(previewEl.classList.contains("is-inactive")).toBe(true);
 
-    const photosSectionVisible = container.querySelector(
-      ".workbench-panel--photos",
-    ) as HTMLElement | null;
-    expect(photosSectionVisible).toBe(photosSection);
-    expect(photosSectionVisible!.isConnected).toBe(true);
-
-    // Go back to write step.
-    clickStep(container, "撰文");
-
-    // Element reference is still valid and connected.
-    expect(photosSectionVisible!.isConnected).toBe(true);
-    expect(
-      container.querySelector(".workbench-panel--photos"),
-    ).toBe(photosSectionVisible);
+    clickStep(container, "预览");
+    expect(panel(container, "preview")).toBe(previewEl);
+    expect(previewEl.classList.contains("is-active")).toBe(true);
   });
 });

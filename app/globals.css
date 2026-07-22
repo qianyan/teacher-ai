@@ -152,7 +152,7 @@ a:hover {
 
   .app-unlocked-shell .app-header,
   .app-unlocked-shell .workbench-rail,
-  .app-unlocked-shell .workbench-stage > .app-panel,
+  .app-unlocked-shell .workbench-stage > .app-panel.is-active,
   .app-unlocked-shell .app-stack-col > .app-panel,
   .app-unlocked-shell .app-aside.app-panel,
   .app-unlocked-shell .app-preview-section {
@@ -559,7 +559,31 @@ a:hover {
 }
 
 .workbench-stage {
+  position: relative;
   min-height: 200px;
+}
+
+/*
+  Inactive step panels stay mounted (issue #20) but must NOT use display:none:
+  that zeroes clientWidth so PreviewPanel cannot pre-measure, and blocks lazy
+  image decode. Keep width via absolute stretch; collapse height so inactive
+  panels do not inflate page scroll.
+*/
+.workbench-stage > .workbench-panel.is-inactive {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.workbench-stage > .workbench-panel.is-active {
+  position: relative;
+  z-index: 1;
 }
 
 .workbench-panel__head {
@@ -1487,7 +1511,8 @@ a:hover {
     animation-delay: 0.08s;
   }
 
-  .app-unlocked-shell .workbench-stage > .app-panel {
+  /* Only the initially active panel should rise in — inactive keep-alives stay hidden. */
+  .app-unlocked-shell .workbench-stage > .app-panel.is-active {
     animation: appBlockRise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
     animation-delay: 0.12s;
   }
