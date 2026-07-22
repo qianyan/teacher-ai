@@ -130,7 +130,7 @@ supabase/            # Supabase config, migrations, seed
 | `npm run test:e2e` | Run Playwright end-to-end tests (boots dev server) |
 | `npm run e2e:install` | Install the Chromium browser for Playwright |
 
-Vitest covers pure domain logic (`lib/env`, `lib/report`, `lib/photos`, `lib/llm`, `lib/db`) and integration paths with a mocked Supabase admin client (`lib/server/invite-codes`, `app/api/auth/register`). The two original standalone guards — `npm run test:env` and `npm run test:ci-db-safety` — remain as `tsx` scripts.
+Vitest covers pure domain logic (`lib/env`, `lib/report`, `lib/photos`, `lib/llm`, `lib/db`), integration paths with a mocked Supabase admin client (`lib/server/invite-codes`, `app/api/auth/register`), and component rendering tests (`components/*.test.tsx`). The two original standalone guards — `npm run test:env` and `npm run test:ci-db-safety` — remain as `tsx` scripts.
 
 Playwright e2e boots the Next.js dev server with dummy Supabase credentials that point at nothing; the public `/login` page renders without a running Docker stack. Flows that need a real backend (generate, history) are covered by the preview smoke test (`npm run smoke:preview`) instead.
 

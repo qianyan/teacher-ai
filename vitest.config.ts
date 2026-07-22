@@ -10,12 +10,18 @@ export default defineConfig({
       "@": root,
     },
   },
+  esbuild: {
+    // Use React 19's automatic JSX runtime so .tsx files using the new
+    // transform (no explicit React import) work in vitest without crashing.
+    jsx: "automatic",
+    jsxImportSource: "react",
+  },
   test: {
     environment: "node",
     // Unit + integration tests live next to the code they cover.
     // scripts/*.test.ts are standalone tsx guards (run via test:env / test:ci-db-safety)
     // and e2e specs are owned by Playwright, so both are excluded here.
-    include: ["lib/**/*.test.ts", "app/**/*.test.ts", "components/**/*.test.ts"],
+    include: ["lib/**/*.test.ts", "app/**/*.test.ts", "components/**/*.test.ts", "components/**/*.test.tsx"],
     exclude: ["node_modules", ".next", "e2e"],
   },
 });
