@@ -823,6 +823,35 @@ a:hover {
   box-shadow: var(--shadow-md);
 }
 
+/* PreviewPanel: elevate the same in-step iframe into fullscreen (no second mount). */
+.preview-fullscreen-host {
+  position: fixed;
+  inset: 0;
+  z-index: 25000;
+  box-sizing: border-box;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.preview-fullscreen-host__frame {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.preview-scroll-well__inner {
+  display: contents;
+}
+
 .report-preview-frame__skeleton {
   position: absolute;
   inset: 0;

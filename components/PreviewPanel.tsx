@@ -13,7 +13,6 @@ import {
 } from "@/lib/photos/inject-blobs";
 import type { CSSProperties } from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 
 const SRCDOC_DEBOUNCE_MS = 80;
 
@@ -30,17 +29,12 @@ function PreviewPanelInner({ fullHtml, photos }: Props) {
   const [htmlBusy, setHtmlBusy] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
-  const [portalMounted, setPortalMounted] = useState(false);
 
   const photoSig = useMemo(() => photoPreviewSignature(photos), [photos]);
   const photosRef = useRef(photos);
   photosRef.current = photos;
 
   const closeFullscreen = useCallback(() => setFullscreenOpen(false), []);
-
-  useEffect(() => {
-    setPortalMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!fullscreenOpen) return;
@@ -157,14 +151,32 @@ function PreviewPanelInner({ fullHtml, photos }: Props) {
     }
   }
 
+  const previewFrame = srcDoc ? (
+    <ReportPreviewIframe
+      ref={iframeRef}
+      srcDoc={srcDoc}
+      title={fullscreenOpen ? "preview-fullscreen" : "preview"}
+      scaled={!fullscreenOpen}
+      fitToViewport={fullscreenOpen}
+    />
+  ) : (
+    <div className="preview-empty" style={emptyState}>
+      <div className="preview-empty__icon" aria-hidden>
+        ✦
+      </div>
+      <p className="preview-empty__title">尚无预览</p>
+      <p className="preview-empty__hint">
+        填写内容与照片后点击「生成预览 HTML」，成功后将在此显示与导出一致、1080px 宽的版面。
+      </p>
+    </div>
+  );
+
   return (
     <div>
       <div className="preview-toolbar">
         <div className="preview-toolbar__meta">
           <span className="preview-toolbar__title">预览</span>
-          <span className="preview-toolbar__badge">
-            1080px 宽
-          </span>
+          <span className="preview-toolbar__badge">1080px 宽</span>
         </div>
         <div className="preview-toolbar__actions">
           <button
@@ -199,41 +211,23 @@ function PreviewPanelInner({ fullHtml, photos }: Props) {
           </button>
         </div>
       </div>
-      {exportError && (
-        <p className="preview-export-error">
-          {exportError}
-        </p>
-      )}
+      {exportError && <p className="preview-export-error">{exportError}</p>}
       <div className="preview-frame-outer">
         <div className="preview-frame-chrome" aria-hidden />
-        <div className="preview-scroll-well">
-          {srcDoc ? (
-            <ReportPreviewIframe ref={iframeRef} srcDoc={srcDoc} title="preview" scaled />
-          ) : (
-            <div className="preview-empty" style={emptyState}>
-              <div className="preview-empty__icon" aria-hidden>
-                ✦
-              </div>
-              <p className="preview-empty__title">尚无预览</p>
-              <p className="preview-empty__hint">
-                填写内容与照片后点击「生成预览 HTML」，成功后将在此显示与导出一致、1080px 宽的版面。
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-      {portalMounted &&
-        fullscreenOpen &&
-        srcDoc &&
-        typeof document !== "undefined" &&
-        createPortal(
-          <div
-            role="dialog"
-            aria-modal
-            aria-label="HTML 全屏预览"
-            className="template-preview-modal"
-            onClick={closeFullscreen}
-          >
+        <div
+          className={
+            fullscreenOpen && srcDoc
+              ? "preview-fullscreen-host"
+              : "preview-scroll-well"
+          }
+          role={fullscreenOpen && srcDoc ? "dialog" : undefined}
+          aria-modal={fullscreenOpen && srcDoc ? true : undefined}
+          aria-label={fullscreenOpen && srcDoc ? "HTML 全屏预览" : undefined}
+          onClick={
+            fullscreenOpen && srcDoc ? closeFullscreen : undefined
+          }
+        >
+          {fullscreenOpen && srcDoc && (
             <button
               type="button"
               className="btn btn--secondary template-preview-modal__close"
@@ -244,21 +238,24 @@ function PreviewPanelInner({ fullHtml, photos }: Props) {
             >
               关闭
             </button>
-            <div
-              className="template-preview-modal__body template-preview-modal__body--fit"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="template-preview-modal__frame template-preview-modal__frame--fit">
-                <ReportPreviewIframe
-                  srcDoc={srcDoc}
-                  title="preview-fullscreen"
-                  fitToViewport
-                />
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )}
+          )}
+          {/* Stable inner host so ReportPreviewIframe is not remounted on open. */}
+          <div
+            className={
+              fullscreenOpen && srcDoc
+                ? "preview-fullscreen-host__frame"
+                : "preview-scroll-well__inner"
+            }
+            onClick={
+              fullscreenOpen && srcDoc
+                ? (e) => e.stopPropagation()
+                : undefined
+            }
+          >
+            {previewFrame}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

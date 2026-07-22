@@ -167,6 +167,18 @@ const ReportPreviewIframeInner = forwardRef<HTMLIFrameElement, Props>(
       return () => ro.disconnect();
     }, [fitToViewport, applyFitZoom, srcDoc]);
 
+    // When the same iframe is promoted into fitToViewport (报告全屏预览),
+    // the document is already loaded — mark ready immediately so we don't
+    // flash the cold-start skeleton (#25).
+    useEffect(() => {
+      if (!fitToViewport) return;
+      const iframe = iframeRef.current;
+      const doc = iframe?.contentDocument;
+      if (!doc?.documentElement) return;
+      applyFitZoom();
+      setReady(true);
+    }, [fitToViewport, applyFitZoom, srcDoc]);
+
     const handleLoad = useCallback(async () => {
       const iframe = iframeRef.current;
       const doc = iframe?.contentDocument;
