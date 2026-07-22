@@ -2,6 +2,7 @@
 
 import type { PhotoEntry } from "@/lib/photos/inject-blobs";
 import { photoPersistSignature } from "@/lib/photos/inject-blobs";
+import { clearPhotoPreviewCache } from "@/lib/photos/photo-preview-cache";
 import type { ReportTemplateId } from "@/lib/report/templates";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -286,6 +287,7 @@ export function useReportPersistence(params: UseReportPersistenceParams) {
 
   const clearDraftAndReset = useCallback(async () => {
     revokePhotoEntryBlobUrls(stateRef.current.photos);
+    clearPhotoPreviewCache();
     await clearDraftStore();
     applyHydratedState(defaultState);
     setDraftSavedAt(null);

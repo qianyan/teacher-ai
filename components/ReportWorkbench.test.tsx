@@ -15,7 +15,7 @@
 
 import { describe, expect, test, vi } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
-import React from "react";
+import React, { type ComponentProps } from "react";
 
 // Mock next/dynamic so dynamically imported components render a simple stub
 // instead of trying to fetch chunks.
@@ -77,10 +77,10 @@ function clickStep(container: HTMLElement, label: string) {
 
 /** Minimal props that satisfy ReportWorkbenchInner (memo-wrapped). */
 function createMinimalProps(
-  overrides: Record<string, unknown> = {},
-): Record<string, unknown> {
+  overrides: Partial<ComponentProps<typeof ReportWorkbench>> = {},
+): ComponentProps<typeof ReportWorkbench> {
   return {
-    templateId: "infant",
+    templateId: "cream-soft",
     setTemplateId: vi.fn(),
     biweeklyDateRange: "2026-04-01 ~ 2026-04-14",
     setBiweeklyDateRange: vi.fn(),

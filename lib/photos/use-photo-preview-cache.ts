@@ -3,17 +3,16 @@
 import type { PhotoEntry } from "@/lib/photos/inject-blobs";
 import { isHeicLikeFile } from "@/lib/photos/heic-preview";
 import {
+  getPhotoPreviewCacheEntry,
+  prunePhotoPreviewCache,
+  putPhotoPreviewCacheEntry,
+} from "@/lib/photos/photo-preview-cache";
+import {
   createThumbnailPairFromFile,
   createThumbnailPairFromRemote,
   previewCacheSignature,
 } from "@/lib/photos/preview-thumbnail";
-import { useCallback, useEffect, useRef, useState } from "react";
-
-type CachedPreview = {
-  sig: string;
-  thumbUrl: string;
-  stageUrl: string;
-};
+import { useCallback, useEffect, useState } from "react";
 
 type PreviewUrls = {
   thumbUrl: string | null;
@@ -39,26 +38,17 @@ async function runPool<T>(
 }
 
 export function usePhotoPreviewCache(photos: PhotoEntry[]) {
-  const cacheRef = useRef(new Map<string, CachedPreview>());
   const [previewRevision, setPreviewRevision] = useState(0);
   const bump = useCallback(() => setPreviewRevision((n) => n + 1), []);
 
   useEffect(() => {
-    const cache = cacheRef.current;
     const active = new Set(photos.map((p) => p.id));
-
-    for (const [id, entry] of cache) {
-      if (!active.has(id)) {
-        URL.revokeObjectURL(entry.thumbUrl);
-        URL.revokeObjectURL(entry.stageUrl);
-        cache.delete(id);
-      }
-    }
+    prunePhotoPreviewCache(active);
 
     const pending = photos.filter((p) => {
       if (isHeicLikeFile(p.file) || p.ingestError) return false;
       const sig = previewCacheSignature(p);
-      return cache.get(p.id)?.sig !== sig;
+      return getPhotoPreviewCacheEntry(p.id, sig) == null;
     });
 
     if (pending.length === 0) return;
@@ -67,8 +57,7 @@ export function usePhotoPreviewCache(photos: PhotoEntry[]) {
 
     void runPool(pending, GENERATION_CONCURRENCY, async (photo) => {
       const sig = previewCacheSignature(photo);
-      const prev = cache.get(photo.id);
-      if (prev?.sig === sig) return;
+      if (getPhotoPreviewCacheEntry(photo.id, sig)) return;
 
       try {
         const pair =
@@ -86,12 +75,14 @@ export function usePhotoPreviewCache(photos: PhotoEntry[]) {
           return;
         }
 
-        if (prev) {
-          URL.revokeObjectURL(prev.thumbUrl);
-          URL.revokeObjectURL(prev.stageUrl);
+        // Re-check after await — another run may have filled the same sig.
+        if (getPhotoPreviewCacheEntry(photo.id, sig)) {
+          URL.revokeObjectURL(pair.thumbUrl);
+          URL.revokeObjectURL(pair.stageUrl);
+          return;
         }
 
-        cache.set(photo.id, { sig, ...pair });
+        putPhotoPreviewCacheEntry(photo.id, { sig, ...pair });
         if (!cancelled) bump();
       } catch (e) {
         console.warn("Preview thumbnail failed:", photo.logicalName, e);
@@ -103,24 +94,16 @@ export function usePhotoPreviewCache(photos: PhotoEntry[]) {
     };
   }, [photos, bump]);
 
-  useEffect(() => {
-    const cache = cacheRef.current;
-    return () => {
-      for (const entry of cache.values()) {
-        URL.revokeObjectURL(entry.thumbUrl);
-        URL.revokeObjectURL(entry.stageUrl);
-      }
-      cache.clear();
-    };
-  }, []);
+  // Intentionally do NOT clear the module cache on unmount — leaving the
+  // photos step must keep thumbnails warm for the next mount (#23 / ADR-0001).
 
   const getPreviewUrls = useCallback((photo: PhotoEntry | null): PreviewUrls => {
     if (!photo || isHeicLikeFile(photo.file) || photo.ingestError) {
       return { thumbUrl: null, stageUrl: null, loading: false };
     }
-    const cached = cacheRef.current.get(photo.id);
     const sig = previewCacheSignature(photo);
-    if (cached?.sig === sig) {
+    const cached = getPhotoPreviewCacheEntry(photo.id, sig);
+    if (cached) {
       return {
         thumbUrl: cached.thumbUrl,
         stageUrl: cached.stageUrl,

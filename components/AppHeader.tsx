@@ -2,6 +2,7 @@
 
 import { DraftStatusChip } from "@/components/DraftStatusChip";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { clearPhotoPreviewCache } from "@/lib/photos/photo-preview-cache";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import Image from "next/image";
 import Link from "next/link";
@@ -33,6 +34,7 @@ function AppHeaderInner({
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
   const signOut = useCallback(async () => {
+    clearPhotoPreviewCache();
     await supabase.auth.signOut();
     router.replace("/login");
     router.refresh();
