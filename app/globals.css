@@ -823,7 +823,9 @@ a:hover {
   box-shadow: var(--shadow-md);
 }
 
-/* PreviewPanel: elevate the same in-step iframe into fullscreen (no second mount). */
+/* PreviewPanel: elevate the same in-step iframe into fullscreen (no second mount).
+ * No backdrop-filter: Android Chrome shows 报告全屏局部空白 while scrolling an
+ * iframe under a blurred host layer (#26). Opaque scrim is enough. */
 .preview-fullscreen-host {
   position: fixed;
   inset: 0;
@@ -832,9 +834,7 @@ a:hover {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: #1a1a1a;
 }
 
 .preview-fullscreen-host__frame {
@@ -846,6 +846,10 @@ a:hover {
   border-radius: 8px;
   overflow: hidden;
   box-shadow: var(--shadow-md);
+  /* Own compositor layer so iframe scroll tiles are not shared with the scrim. */
+  isolation: isolate;
+  transform: translateZ(0);
+  background: #fff;
 }
 
 .preview-scroll-well__inner {

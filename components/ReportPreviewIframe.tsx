@@ -4,6 +4,7 @@ import {
   applyReportPreviewIframeHeight,
   measureReportPreviewHeight,
 } from "@/lib/report/measure-preview-document";
+import { prepareFitViewportDocument } from "@/lib/report/prepare-fit-viewport-document";
 import {
   forwardRef,
   memo,
@@ -169,14 +170,22 @@ const ReportPreviewIframeInner = forwardRef<HTMLIFrameElement, Props>(
 
     // When the same iframe is promoted into fitToViewport (报告全屏预览),
     // the document is already loaded — mark ready immediately so we don't
-    // flash the cold-start skeleton (#25).
+    // flash the cold-start skeleton (#25). Then eagerly decode images so
+    // scroll does not hitch on mid-gesture decode (#26).
+    // On demote, clear zoom so the in-step scaled transform is not compounded.
     useEffect(() => {
-      if (!fitToViewport) return;
       const iframe = iframeRef.current;
       const doc = iframe?.contentDocument;
+      if (!fitToViewport) {
+        if (doc?.documentElement) doc.documentElement.style.zoom = "";
+        return;
+      }
       if (!doc?.documentElement) return;
       applyFitZoom();
       setReady(true);
+      void prepareFitViewportDocument(doc).then(() => {
+        applyFitZoom();
+      });
     }, [fitToViewport, applyFitZoom, srcDoc]);
 
     const handleLoad = useCallback(async () => {
@@ -187,6 +196,7 @@ const ReportPreviewIframeInner = forwardRef<HTMLIFrameElement, Props>(
       if (fitToViewport) {
         applyFitZoom();
         setReady(true);
+        await prepareFitViewportDocument(doc);
         await waitForPreviewImages(doc);
         // Re-apply once images settle in case layout shifted.
         applyFitZoom();
@@ -204,6 +214,9 @@ const ReportPreviewIframeInner = forwardRef<HTMLIFrameElement, Props>(
           border: "none",
           display: "block",
           background: "#fff",
+          // Promote the scrolling iframe onto its own layer (#26).
+          transform: "translateZ(0)",
+          isolation: "isolate",
         }
       : isScaled
         ? {
