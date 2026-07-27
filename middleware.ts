@@ -1,7 +1,13 @@
-import { updateSession } from "@/lib/supabase/middleware";
+import {
+  isAuthBackendReachable,
+  updateSession,
+} from "@/lib/supabase/middleware";
 import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC_PREFIXES = ["/login", "/auth/callback", "/api/auth/register", "/api/webhooks/stripe"];
+
+// Dev-only E2E harness route (the page itself returns 404 in production).
+if (process.env.NODE_ENV !== "production") PUBLIC_PREFIXES.push("/dev-preview");
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
@@ -24,19 +30,26 @@ export async function middleware(request: NextRequest) {
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
   if (!url || !anonKey) return response;
 
-  const { createServerClient } = await import("@supabase/ssr");
-  const supabase = createServerClient(url, anonKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
+  let user: { id: string } | null = null;
+  if (await isAuthBackendReachable(url, anonKey)) {
+    const { createServerClient } = await import("@supabase/ssr");
+    const supabase = createServerClient(url, anonKey, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll() {},
       },
-      setAll() {},
-    },
-  });
+    });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    try {
+      const { data } = await supabase.auth.getUser();
+      user = data.user;
+    } catch {
+      // Auth backend died mid-request: treat as anonymous (updateSession
+      // already tripped the circuit breaker and logged the warning).
+    }
+  }
 
   if (!user) {
     if (pathname.startsWith("/api/")) {
