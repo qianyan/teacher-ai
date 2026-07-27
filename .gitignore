@@ -30,6 +30,7 @@ npm-debug.log*
 # test artifacts
 /playwright-report
 /test-results
+/e2e/artifacts
 /blob-report
 /coverage
 

@@ -46,26 +46,19 @@ function PreviewPanelInner({ fullHtml, photos }: Props) {
   }, [fullscreenOpen, closeFullscreen]);
 
   // Prevent body scroll while the fullscreen modal is open so touch gestures are
-  // handled by the iframe instead of the background page.
+  // handled by the iframe instead of the background page. Also flag <body> so
+  // CSS can nullify .app-panel backdrop-filter/transform/animation that would
+  // otherwise pin the fixed host to the panel instead of the viewport
+  // (Chrome 116+).
   useEffect(() => {
     if (!fullscreenOpen) return;
     const original = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    document.body.classList.add("preview-fullscreen-open");
     return () => {
       document.body.style.overflow = original;
-    };
-  }, [fullscreenOpen]);
-
-  // Toggle a body class while fullscreen is open so CSS can nullify
-  // .app-panel backdrop-filter/transform that otherwise constrains
-  // the .preview-fullscreen-host position:fixed to the panel (Chrome 116+).
-  useEffect(() => {
-    if (fullscreenOpen) {
-      document.body.classList.add("preview-fullscreen-open");
-    } else {
       document.body.classList.remove("preview-fullscreen-open");
-    }
-    return () => document.body.classList.remove("preview-fullscreen-open");
+    };
   }, [fullscreenOpen]);
 
   useEffect(() => {
