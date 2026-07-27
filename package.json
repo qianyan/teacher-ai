@@ -35,7 +35,7 @@
     "db:migrate:local": "tsx scripts/migrate-db.ts --target local",
     "db:migrate:remote": "tsx scripts/migrate-db.ts --target linked",
     "db:reset:local": "tsx scripts/migrate-db.ts --target local --reset",
-    "supabase:start": "npx supabase start",
+    "supabase:start": "npx supabase start --exclude vector",
     "supabase:stop": "npx supabase stop",
     "supabase:status": "npx supabase status",
     "photos:cleanup-orphans": "tsx scripts/cleanup-orphan-photos.ts",
