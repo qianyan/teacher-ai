@@ -129,13 +129,31 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          url="${{ steps.deploy.outputs.url }}"
-          echo "Inspecting deployment: $url"
-          for i in 1 2 3 4 5 6; do
-            echo "--- poll $i ($(date -u +%H:%M:%S)) ---"
-            npx vercel@56.5.0 inspect "$url" --token="$VERCEL_TOKEN" 2>&1 | grep -E "State|Created|Duration|URL|Error" || true
-            sleep 30
-          done
+          set +e
+          API="https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&limit=3&teamId=${VERCEL_ORG_ID}"
+          BODY=$(curl -s -H "Authorization: Bearer ${VERCEL_TOKEN}" "$API")
+          echo "$BODY" | node -e '
+            let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{
+              try{
+                const j=JSON.parse(d);
+                const deps=j.deployments||[];
+                if(!deps.length){console.log("NO DEPLOYMENTS or ERROR:",d.slice(0,500));process.exit(0);}
+                for(const dep of deps){
+                  console.log("----");
+                  console.log("uid:",dep.uid,"name:",dep.name,"url:",dep.url);
+                  console.log("state/readyState:",dep.state,dep.readyState,"createdAt:",new Date(dep.createdAt).toISOString());
+                  if(dep.error) console.log("ERROR:",JSON.stringify(dep.error));
+                }
+              }catch(e){console.log("PARSE FAIL:",d.slice(0,500));}
+            });
+          '
+          echo "--- build logs of latest ---"
+          LATEST_UID=$(echo "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{const j=JSON.parse(d);console.log((j.deployments||[])[0]?.uid||"");}catch(e){}});')
+          if [ -n "$LATEST_UID" ]; then
+            curl -s -H "Authorization: Bearer ${VERCEL_TOKEN}" "https://api.vercel.com/v3/deployments/${LATEST_UID}/events?teamId=${VERCEL_ORG_ID}" | tail -c 4000
+          fi
+          echo
+          echo "--- done ---"
 
   verify-preview:
     name: Verify Preview
