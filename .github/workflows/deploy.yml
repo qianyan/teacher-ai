@@ -107,15 +107,18 @@ jobs:
       - name: Validate preview environment
         run: npm run env:validate -- --target preview --env-file .vercel/.env.preview.local
 
+      # Pinned: Vercel CLI ≥58's deploy readiness wait times out (~300s, silent exit 1)
+      # on this project even when the deployment is live. Revisit when Vercel ships a
+      # --timeout flag or fixes the wait.
       - name: Build preview artifact
-        run: npx vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        run: npx vercel@56.5.0 build --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy preview
         id: deploy
         run: |
-          url=$(npx vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          url=$(npx vercel@56.5.0 deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Preview URL: $url"
         env:
@@ -219,14 +222,14 @@ jobs:
         run: npm run env:validate -- --target production --env-file .vercel/.env.production.local
 
       - name: Build production artifact
-        run: npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: npx vercel@56.5.0 build --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy production
         id: deploy
         run: |
-          url=$(npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          url=$(npx vercel@56.5.0 deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Production URL: $url"
         env:
