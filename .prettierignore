@@ -1,0 +1,15 @@
+.next
+out
+coverage
+playwright-report
+test-results
+blob-report
+node_modules
+package-lock.json
+supabase/.temp
+supabase/.branches
+.env*
+*.tsbuildinfo
+toddler-biweekly-report-*.html
+toddler-biweekly-report-*.png
+photos/

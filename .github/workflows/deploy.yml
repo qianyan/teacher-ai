@@ -41,6 +41,9 @@ jobs:
       - name: Unit & integration tests
         run: npm run test
 
+      - name: Unit tests with coverage gate
+        run: npm run test:coverage
+
       - name: Lint
         run: npm run lint
 
