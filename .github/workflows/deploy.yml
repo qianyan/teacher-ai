@@ -124,6 +124,19 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
+      - name: Debug deploy state (TEMPORARY - remove after diagnosis)
+        if: always()
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          url="${{ steps.deploy.outputs.url }}"
+          echo "Inspecting deployment: $url"
+          for i in 1 2 3 4 5 6; do
+            echo "--- poll $i ($(date -u +%H:%M:%S)) ---"
+            npx vercel@56.5.0 inspect "$url" --token="$VERCEL_TOKEN" 2>&1 | grep -E "State|Created|Duration|URL|Error" || true
+            sleep 30
+          done
+
   verify-preview:
     name: Verify Preview
     needs: deploy-preview
