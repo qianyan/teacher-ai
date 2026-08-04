@@ -4,12 +4,16 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
-// Glob patterns handed to the Sentry plugin must be posix-style (it globs paths as-is).
-const dirPosix = dir.split(path.sep).join(path.posix.sep);
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: dir,
+  // Keep source maps out of the deployment bundle: nft never traces them into
+  // .vercel/output, so serverless packages stay small. (Deleting server maps
+  // mid-build instead would make nft lstat missing files → ENOENT.)
+  outputFileTracingExcludes: {
+    "*": ["**/*.js.map", "**/*.css.map"],
+  },
   webpack: (config, { isServer, webpack }) => {
     // SENTRY_DSN is not NEXT_PUBLIC_ prefixed, so inline it explicitly into the
     // client bundle (build-time value; unset → Sentry stays a no-op in browser).
@@ -45,18 +49,10 @@ export default withSentryConfig(nextConfig, {
   sourcemaps: {
     // Keep source map generation + upload intact: when SENTRY_AUTH_TOKEN is
     // set, maps are uploaded to Sentry and then removed from the build output.
-    // Without the token, uploads are skipped but the maps are still deleted,
-    // so .vercel/output stays small and Vercel deploys are not bloated.
+    // The default deletion pattern covers .next/static (client maps) only; nft
+    // does not trace static assets, so deleting them there is safe. Server maps
+    // are left on disk and excluded from the deploy bundle via
+    // outputFileTracingExcludes above (deleting them mid-build breaks nft).
     deleteSourcemapsAfterUpload: true,
-    // Explicit globs covering client (static) and server maps. With webpack
-    // builds the SDK's default deletion pattern only covers .next/static
-    // (server maps are never auto-deleted), and setting filesToDeleteAfterUpload
-    // overrides the default — so list both trees to guarantee nothing ships.
-    filesToDeleteAfterUpload: [
-      path.posix.join(dirPosix, ".next", "static", "**", "*.js.map"),
-      path.posix.join(dirPosix, ".next", "static", "**", "*.css.map"),
-      path.posix.join(dirPosix, ".next", "server", "**", "*.js.map"),
-      path.posix.join(dirPosix, ".next", "server", "**", "*.css.map"),
-    ],
   },
 });
