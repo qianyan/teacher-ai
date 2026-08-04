@@ -97,38 +97,39 @@ supabase/            # Supabase config, migrations, seed
 
 ### Development
 
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Start the Next.js dev server |
-| `npm run build` | Production build |
-| `npm run start` | Start the production server |
-| `npm run lint` | Run ESLint |
+| Command         | Purpose                      |
+| --------------- | ---------------------------- |
+| `npm run dev`   | Start the Next.js dev server |
+| `npm run build` | Production build             |
+| `npm run start` | Start the production server  |
+| `npm run lint`  | Run ESLint                   |
 
 ### Environment validation
 
-| Command | Purpose |
-| --- | --- |
-| `npm run prepare:local` | Validate `.env.local` and run env schema tests |
-| `npm run verify:local` | Validate `.env.local` and run a production build |
-| `npm run prepare:preview` | Pull Vercel preview env and validate it |
-| `npm run verify:preview` | Prepare preview env and run a production build |
-| `npm run prepare:production` | Pull Vercel production env and validate it |
-| `npm run verify:production` | Prepare production env and run a production build |
-| `npm run env:validate:local` | Validate `.env.local` explicitly |
-| `npm run env:validate:preview` | Validate preview env explicitly |
-| `npm run env:validate:production` | Validate production env explicitly |
-| `npm run test:env` | Run the environment validation test suite |
-| `npm run test:ci-db-safety` | Ensure CI cannot run remote database resets |
+| Command                           | Purpose                                           |
+| --------------------------------- | ------------------------------------------------- |
+| `npm run prepare:local`           | Validate `.env.local` and run env schema tests    |
+| `npm run verify:local`            | Validate `.env.local` and run a production build  |
+| `npm run prepare:preview`         | Pull Vercel preview env and validate it           |
+| `npm run verify:preview`          | Prepare preview env and run a production build    |
+| `npm run prepare:production`      | Pull Vercel production env and validate it        |
+| `npm run verify:production`       | Prepare production env and run a production build |
+| `npm run env:validate:local`      | Validate `.env.local` explicitly                  |
+| `npm run env:validate:preview`    | Validate preview env explicitly                   |
+| `npm run env:validate:production` | Validate production env explicitly                |
+| `npm run test:env`                | Run the environment validation test suite         |
+| `npm run test:ci-db-safety`       | Ensure CI cannot run remote database resets       |
 
 ### Testing
 
-| Command | Purpose |
-| --- | --- |
-| `npm run test` | Run all Vitest unit + integration tests once |
-| `npm run test:watch` | Run Vitest in watch mode |
-| `npm run test:unit` | Alias for `npm run test` |
-| `npm run test:e2e` | Run Playwright end-to-end tests (boots dev server) |
-| `npm run e2e:install` | Install the Chromium browser for Playwright |
+| Command                 | Purpose                                                     |
+| ----------------------- | ----------------------------------------------------------- |
+| `npm run test`          | Run all Vitest unit + integration tests once                |
+| `npm run test:coverage` | Run Vitest with coverage and enforce the ratchet thresholds |
+| `npm run test:watch`    | Run Vitest in watch mode                                    |
+| `npm run test:unit`     | Alias for `npm run test`                                    |
+| `npm run test:e2e`      | Run Playwright end-to-end tests (boots dev server)          |
+| `npm run e2e:install`   | Install the Chromium browser for Playwright                 |
 
 Vitest covers pure domain logic (`lib/env`, `lib/report`, `lib/photos`, `lib/llm`, `lib/db`), integration paths with a mocked Supabase admin client (`lib/server/invite-codes`, `app/api/auth/register`), and component rendering tests (`components/*.test.tsx`). The two original standalone guards — `npm run test:env` and `npm run test:ci-db-safety` — remain as `tsx` scripts.
 
@@ -136,37 +137,37 @@ Playwright e2e boots the Next.js dev server with dummy Supabase credentials that
 
 ### Local infrastructure
 
-| Command | Purpose |
-| --- | --- |
-| `npm run provision:local` | Start local Docker Supabase, migrate, and generate `.env.local` |
-| `npm run supabase:start` | Start the local Supabase containers |
-| `npm run supabase:stop` | Stop the local Supabase containers |
-| `npm run supabase:status` | Show local Supabase URLs and keys |
-| `npm run db:migrate:local` | Apply pending migrations to the local database |
-| `npm run db:reset:local` | **Wipe** local data and re-run migrations |
-| `npm run db:migrate:remote` | Push migrations to the linked remote Supabase project |
+| Command                     | Purpose                                                         |
+| --------------------------- | --------------------------------------------------------------- |
+| `npm run provision:local`   | Start local Docker Supabase, migrate, and generate `.env.local` |
+| `npm run supabase:start`    | Start the local Supabase containers                             |
+| `npm run supabase:stop`     | Stop the local Supabase containers                              |
+| `npm run supabase:status`   | Show local Supabase URLs and keys                               |
+| `npm run db:migrate:local`  | Apply pending migrations to the local database                  |
+| `npm run db:reset:local`    | **Wipe** local data and re-run migrations                       |
+| `npm run db:migrate:remote` | Push migrations to the linked remote Supabase project           |
 
 ### Auth & invites
 
-| Command | Purpose |
-| --- | --- |
-| `npx tsx scripts/create-invite-code.ts` | Create a single-use invite code |
-| `npx tsx scripts/create-invite-codes-batch.ts 20 "Cohort name"` | Create a batch of codes |
+| Command                                                         | Purpose                         |
+| --------------------------------------------------------------- | ------------------------------- |
+| `npx tsx scripts/create-invite-code.ts`                         | Create a single-use invite code |
+| `npx tsx scripts/create-invite-codes-batch.ts 20 "Cohort name"` | Create a batch of codes         |
 
 ### Screenshots & cleanup
 
-| Command | Purpose |
-| --- | --- |
-| `npm run smoke:preview` | Run a smoke test against `PREVIEW_URL` |
-| `npm run e2b:build-template` | Build the E2B long-screenshot template |
-| `npm run photos:cleanup-orphans` | List orphaned report photos in Supabase Storage |
-| `npm run photos:cleanup-orphans:delete` | Delete orphaned report photos |
+| Command                                 | Purpose                                         |
+| --------------------------------------- | ----------------------------------------------- |
+| `npm run smoke:preview`                 | Run a smoke test against `PREVIEW_URL`          |
+| `npm run e2b:build-template`            | Build the E2B long-screenshot template          |
+| `npm run photos:cleanup-orphans`        | List orphaned report photos in Supabase Storage |
+| `npm run photos:cleanup-orphans:delete` | Delete orphaned report photos                   |
 
 ### Deployment
 
-| Command | Purpose |
-| --- | --- |
-| `npm run deploy:preview` | Validate and deploy to Vercel preview |
+| Command                     | Purpose                                  |
+| --------------------------- | ---------------------------------------- |
+| `npm run deploy:preview`    | Validate and deploy to Vercel preview    |
 | `npm run deploy:production` | Validate and deploy to Vercel production |
 
 ## Environment variables
@@ -192,6 +193,11 @@ All local variables plus the Supabase variables must be set in Vercel. Optional 
 - `E2B_API_KEY` and `E2B_LONG_SCREENSHOT_TEMPLATE` — must be set together or omitted together.
 
 See [`docs/local-development.md`](./docs/local-development.md) and [`docs/deployment.md`](./docs/deployment.md) for the full environment setup.
+
+## Health check & error tracking
+
+- `GET /health` returns `200 { "status": "ok", "timestamp": "..." }` with no database or auth checks (whitelisted in the middleware for uptime probes).
+- Sentry error tracking activates when `SENTRY_DSN` is configured (local `.env.local`, Vercel env); without it the SDK is a no-op. `SENTRY_AUTH_TOKEN` is only needed at build time for source map upload.
 
 ## Common workflows
 

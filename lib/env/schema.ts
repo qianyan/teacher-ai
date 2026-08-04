@@ -72,10 +72,7 @@ function validateE2bPair(env: EnvRecord, errors: EnvValidationIssue[]): void {
   }
 
   errors.push(
-    issue(
-      "E2B_API_KEY",
-      "E2B_API_KEY and E2B_LONG_SCREENSHOT_TEMPLATE must be set together.",
-    ),
+    issue("E2B_API_KEY", "E2B_API_KEY and E2B_LONG_SCREENSHOT_TEMPLATE must be set together."),
   );
 }
 
@@ -100,20 +97,14 @@ function validateUrl(value: string): boolean {
   }
 }
 
-export function validateEnvironment(
-  env: EnvRecord,
-  target: DeploymentTarget,
-): EnvValidationResult {
+export function validateEnvironment(env: EnvRecord, target: DeploymentTarget): EnvValidationResult {
   const errors: EnvValidationIssue[] = [];
   const warnings: EnvValidationIssue[] = [];
   const provider = read(env, "LLM_PROVIDER") || "openai_compatible";
 
   if (provider !== "openai_compatible" && provider !== "anthropic") {
     errors.push(
-      issue(
-        "LLM_PROVIDER",
-        "LLM_PROVIDER must be either openai_compatible or anthropic.",
-      ),
+      issue("LLM_PROVIDER", "LLM_PROVIDER must be either openai_compatible or anthropic."),
     );
   }
 
@@ -145,6 +136,12 @@ export function validateEnvironment(
     );
   }
 
+  // Sentry is optional on every target: unset means error reporting is disabled.
+  const sentryDsn = read(env, "SENTRY_DSN");
+  if (sentryDsn && !validateUrl(sentryDsn)) {
+    errors.push(issue("SENTRY_DSN", "SENTRY_DSN must be a valid URL when set."));
+  }
+
   if (STRICT_TARGETS.has(target)) {
     for (const name of [
       "NEXT_PUBLIC_SUPABASE_URL",
@@ -159,12 +156,7 @@ export function validateEnvironment(
 
   const supabaseUrl = read(env, "NEXT_PUBLIC_SUPABASE_URL");
   if (supabaseUrl && !validateUrl(supabaseUrl)) {
-    errors.push(
-      issue(
-        "NEXT_PUBLIC_SUPABASE_URL",
-        "NEXT_PUBLIC_SUPABASE_URL must be a valid URL.",
-      ),
-    );
+    errors.push(issue("NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL must be a valid URL."));
   }
 
   validateE2bPair(env, errors);

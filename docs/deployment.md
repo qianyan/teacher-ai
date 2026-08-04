@@ -4,11 +4,11 @@ This project supports three deployment targets: `local`, `preview`, and `product
 
 ## Targets
 
-| Target | Purpose | Required validation |
-| --- | --- | --- |
-| `local` | Developer machine using `.env.local` | LLM credentials and env schema tests |
-| `preview` | Vercel preview deployment | Vercel preview env pull, env schema validation, Next build |
-| `production` | Vercel production deployment | Vercel production env pull, strict env schema validation, Next build |
+| Target       | Purpose                              | Required validation                                                  |
+| ------------ | ------------------------------------ | -------------------------------------------------------------------- |
+| `local`      | Developer machine using `.env.local` | LLM credentials and env schema tests                                 |
+| `preview`    | Vercel preview deployment            | Vercel preview env pull, env schema validation, Next build           |
+| `production` | Vercel production deployment         | Vercel production env pull, strict env schema validation, Next build |
 
 ## Local
 
@@ -135,10 +135,10 @@ values ('VIP-001', 1, '2027-01-01'::timestamptz, 'One-off');
 
 ### Usage quotas & subscriptions
 
-| Plan | `profiles.plan` | AI 生成 |
-| --- | --- | --- |
-| 免费 | `free` | 每月 `FREE_TIER_MONTHLY_GENERATIONS` 次（默认 5） |
-| Pro | `pro` | 不限次数 |
+| Plan | `profiles.plan` | AI 生成                                           |
+| ---- | --------------- | ------------------------------------------------- |
+| 免费 | `free`          | 每月 `FREE_TIER_MONTHLY_GENERATIONS` 次（默认 5） |
+| Pro  | `pro`           | 不限次数                                          |
 
 Upgrade Pro manually (until payment webhooks ship):
 
@@ -167,14 +167,24 @@ For Vercel environments, prefer the prepare scripts because they first pull remo
 
 The validator does not print secret values. It reports only variable names and the rule that failed.
 
+## Sentry (error tracking)
+
+| Variable             | Where                                                                                   | Sensitivity                                                    | Purpose                                                                          |
+| -------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `SENTRY_DSN`         | Vercel env (Preview + Production), local `.env.local`                                   | Non-sensitive (public ingest key, committed in `.env.example`) | Activates runtime error reporting. When unset, Sentry is fully disabled (no-op). |
+| `SENTRY_AUTH_TOKEN`  | GitHub Actions secret (used by the `validate` job's `npm run build`) and Vercel env var | Sensitive — never commit                                       | Build-time only: source map upload.                                              |
+| `SENTRY_ENVIRONMENT` | Optional Vercel env                                                                     | Non-sensitive                                                  | Overrides the environment tag (defaults to `VERCEL_ENV`, then `NODE_ENV`).       |
+
+The build tolerates missing Sentry credentials: without `SENTRY_AUTH_TOKEN`, the Sentry build plugin skips release creation and source map upload (warning only), so `npm run build` succeeds in CI without any Sentry variables. `GET /health` is a dependency-free liveness probe, whitelisted in the middleware.
+
 ## Database migrations
 
-| Command | Scope | Data impact |
-| --- | --- | --- |
-| `npm run db:migrate:local` | Local Docker Supabase | **Additive only** — applies pending migrations |
+| Command                     | Scope                  | Data impact                                     |
+| --------------------------- | ---------------------- | ----------------------------------------------- |
+| `npm run db:migrate:local`  | Local Docker Supabase  | **Additive only** — applies pending migrations  |
 | `npm run db:migrate:remote` | Linked remote Supabase | **Additive only** — `supabase db push --linked` |
-| `npm run db:reset:local` | Local Docker only | **Wipes all local data** — never used in CI |
-| `npm run provision:local` | Local dev setup | Includes local reset for a clean stack |
+| `npm run db:reset:local`    | Local Docker only      | **Wipes all local data** — never used in CI     |
+| `npm run provision:local`   | Local dev setup        | Includes local reset for a clean stack          |
 
 **CI safety:** The validate job runs `npm run test:ci-db-safety`, which fails if any workflow uses `db reset --linked`, `db reset` without `--local`, or local-only commands like `provision:local`. Remote/preview/production databases are never reset by this pipeline.
 
@@ -202,20 +212,20 @@ e2e (Playwright) runs in parallel with validate and does not gate deploys;
 it uploads the playwright-report artifact.
 ```
 
-| Event | Result |
-| --- | --- |
-| Pull request to `main` | Preview deploy + smoke tests + PR comment |
-| Push to `main` | Preview deploy + smoke tests + DB migration + production deploy + production smoke test |
+| Event                  | Result                                                                                  |
+| ---------------------- | --------------------------------------------------------------------------------------- |
+| Pull request to `main` | Preview deploy + smoke tests + PR comment                                               |
+| Push to `main`         | Preview deploy + smoke tests + DB migration + production deploy + production smoke test |
 
 Migrations run only on push to `main`, after preview smoke tests pass and before production deploy — schema lands before code that depends on it. Pull requests never touch any database.
 
 ### Where secrets live (never commit them)
 
-| Location | What to store |
-| --- | --- |
+| Location                                                | What to store                                                                                                                                                      |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Vercel → Project → Settings → Environment Variables** | App secrets: `LLM_API_KEY`, Supabase keys, `E2B_API_KEY`, etc. Scope each variable to Preview and/or Production. Enable Passkeys in Supabase Dashboard separately. |
-| **GitHub → Settings → Secrets and variables → Actions** | CI-only: `VERCEL_TOKEN`, optional `VERCEL_AUTOMATION_BYPASS_SECRET`. |
-| **Local only** | `.env.local`, `.vercel/.env.*.local` — already gitignored. |
+| **GitHub → Settings → Secrets and variables → Actions** | CI-only: `VERCEL_TOKEN`, optional `VERCEL_AUTOMATION_BYPASS_SECRET`.                                                                                               |
+| **Local only**                                          | `.env.local`, `.vercel/.env.*.local` — already gitignored.                                                                                                         |
 
 CI runs `vercel pull` at deploy time to download Vercel env vars into `.vercel/.env.preview.local`. That file is temporary and must not be committed.
 
@@ -223,12 +233,13 @@ CI runs `vercel pull` at deploy time to download Vercel env vars into `.vercel/.
 
 ### Required GitHub secrets
 
-| Secret | Purpose |
-| --- | --- |
-| `VERCEL_TOKEN` | Vercel CLI auth for pull/build/deploy |
-| `VERCEL_AUTOMATION_BYPASS_SECRET` | Optional. Required when Vercel Deployment Protection blocks preview/production smoke tests |
-| `SUPABASE_ACCESS_TOKEN` | Supabase CLI auth for `db push --linked` in the `migrate-db` job |
-| `SUPABASE_PROJECT_REF` | **Repo variable** (not a secret — it's part of the public Supabase URL). Target project for `supabase link`. Read via `vars.SUPABASE_PROJECT_REF`. |
+| Secret                            | Purpose                                                                                                                                                                   |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VERCEL_TOKEN`                    | Vercel CLI auth for pull/build/deploy                                                                                                                                     |
+| `VERCEL_AUTOMATION_BYPASS_SECRET` | Optional. Required when Vercel Deployment Protection blocks preview/production smoke tests                                                                                |
+| `SUPABASE_ACCESS_TOKEN`           | Supabase CLI auth for `db push --linked` in the `migrate-db` job                                                                                                          |
+| `SUPABASE_PROJECT_REF`            | **Repo variable** (not a secret — it's part of the public Supabase URL). Target project for `supabase link`. Read via `vars.SUPABASE_PROJECT_REF`.                        |
+| `SENTRY_AUTH_TOKEN`               | Sentry build-time token for source map upload during the `validate` job's `npm run build` (also set as a Vercel env var for deployment builds). Sensitive — never commit. |
 
 Repository variables are set in the workflow:
 
@@ -258,11 +269,11 @@ If CI prints `Environment validation failed for preview`, fix variables in the *
 
 Common cases:
 
-| Error | Fix in Vercel Preview env |
-| --- | --- |
-| Missing Supabase keys | Add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` |
-| Missing LLM key | Add `LLM_API_KEY` (or provider-specific key) |
-| E2B pair mismatch | Set **both** `E2B_API_KEY` and `E2B_LONG_SCREENSHOT_TEMPLATE`, or **delete both** if preview does not need long screenshots |
+| Error                 | Fix in Vercel Preview env                                                                                                   |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Missing Supabase keys | Add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`                                |
+| Missing LLM key       | Add `LLM_API_KEY` (or provider-specific key)                                                                                |
+| E2B pair mismatch     | Set **both** `E2B_API_KEY` and `E2B_LONG_SCREENSHOT_TEMPLATE`, or **delete both** if preview does not need long screenshots |
 
 Reproduce locally:
 

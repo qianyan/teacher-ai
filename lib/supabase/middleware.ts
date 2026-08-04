@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { logger } from "@/lib/logger";
 
 // When the auth backend is unreachable (e.g. local Supabase not running),
 // creating an auth client with a stale session cookie makes auth-js fire a
@@ -16,7 +17,7 @@ function markAuthBackendDown() {
   authDownUntil = Date.now() + AUTH_CHECK_INTERVAL_MS;
   if (authBackendWarned) return;
   authBackendWarned = true;
-  console.warn(
+  logger.warn(
     "[middleware] Supabase auth unreachable; treating requests as anonymous. " +
       "Is local Supabase running (npm run supabase:start)?",
   );
@@ -32,10 +33,7 @@ export function isAuthBackendDown(): boolean {
  * AUTH_CHECK_INTERVAL_MS; a failure treats requests as anonymous until the
  * interval elapses and the probe is retried.
  */
-export async function isAuthBackendReachable(
-  url: string,
-  anonKey: string,
-): Promise<boolean> {
+export async function isAuthBackendReachable(url: string, anonKey: string): Promise<boolean> {
   const now = Date.now();
   if (now < authDownUntil) return false;
   if (now - authHealthyAt < AUTH_CHECK_INTERVAL_MS) return true;
