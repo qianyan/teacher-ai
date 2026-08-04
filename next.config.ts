@@ -4,6 +4,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
+// Glob patterns handed to the Sentry plugin must be posix-style (it globs paths as-is).
+const dirPosix = dir.split(path.sep).join(path.posix.sep);
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -40,4 +42,21 @@ export default withSentryConfig(nextConfig, {
   authToken: process.env.SENTRY_AUTH_TOKEN,
   silent: true,
   telemetry: false,
+  sourcemaps: {
+    // Keep source map generation + upload intact: when SENTRY_AUTH_TOKEN is
+    // set, maps are uploaded to Sentry and then removed from the build output.
+    // Without the token, uploads are skipped but the maps are still deleted,
+    // so .vercel/output stays small and Vercel deploys are not bloated.
+    deleteSourcemapsAfterUpload: true,
+    // Explicit globs covering client (static) and server maps. With webpack
+    // builds the SDK's default deletion pattern only covers .next/static
+    // (server maps are never auto-deleted), and setting filesToDeleteAfterUpload
+    // overrides the default — so list both trees to guarantee nothing ships.
+    filesToDeleteAfterUpload: [
+      path.posix.join(dirPosix, ".next", "static", "**", "*.js.map"),
+      path.posix.join(dirPosix, ".next", "static", "**", "*.css.map"),
+      path.posix.join(dirPosix, ".next", "server", "**", "*.js.map"),
+      path.posix.join(dirPosix, ".next", "server", "**", "*.css.map"),
+    ],
+  },
 });

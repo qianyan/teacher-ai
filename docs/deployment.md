@@ -175,7 +175,7 @@ The validator does not print secret values. It reports only variable names and t
 | `SENTRY_AUTH_TOKEN`  | GitHub Actions secret (used by the `validate` job's `npm run build`) and Vercel env var | Sensitive — never commit                                       | Build-time only: source map upload.                                              |
 | `SENTRY_ENVIRONMENT` | Optional Vercel env                                                                     | Non-sensitive                                                  | Overrides the environment tag (defaults to `VERCEL_ENV`, then `NODE_ENV`).       |
 
-The build tolerates missing Sentry credentials: without `SENTRY_AUTH_TOKEN`, the Sentry build plugin skips release creation and source map upload (warning only), so `npm run build` succeeds in CI without any Sentry variables. `GET /health` is a dependency-free liveness probe, whitelisted in the middleware.
+The build tolerates missing Sentry credentials: without `SENTRY_AUTH_TOKEN`, the Sentry build plugin skips release creation and source map upload (warning only), so `npm run build` succeeds in CI without any Sentry variables. `GET /health` is a dependency-free liveness probe, whitelisted in the middleware. Source maps are deleted from the build output after upload, so deploys stay small even before `SENTRY_AUTH_TOKEN` is configured.
 
 ## Database migrations
 
