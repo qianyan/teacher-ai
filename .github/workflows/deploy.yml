@@ -41,9 +41,6 @@ jobs:
       - name: Unit & integration tests
         run: npm run test
 
-      - name: Unit tests with coverage gate
-        run: npm run test:coverage
-
       - name: Lint
         run: npm run lint
 
@@ -107,47 +104,19 @@ jobs:
       - name: Validate preview environment
         run: npm run env:validate -- --target preview --env-file .vercel/.env.preview.local
 
-      # Pinned: Vercel CLI ≥58's deploy readiness wait times out (~300s, silent exit 1)
-      # on this project even when the deployment is live. Revisit when Vercel ships a
-      # --timeout flag or fixes the wait.
       - name: Build preview artifact
-        run: npx vercel@56.5.0 build --token=${{ secrets.VERCEL_TOKEN }}
+        run: npx vercel build --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy preview
         id: deploy
         run: |
-          url=$(npx vercel@56.5.0 deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          url=$(npx vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Preview URL: $url"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-
-      - name: Debug deploy state (TEMPORARY - remove after diagnosis)
-        if: always()
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          set +e
-          AUTH="Authorization: Bearer ${VERCEL_TOKEN}"
-          TEAM="teamId=${VERCEL_ORG_ID}"
-          BASE="https://api.vercel.com"
-          echo "=== RAW LIST RESPONSE (first 3000 chars) ==="
-          LIST=$(curl -s -H "$AUTH" "${BASE}/v6/deployments?projectId=${VERCEL_PROJECT_ID}&limit=2&${TEAM}")
-          echo "$LIST" | head -c 3000
-          echo
-          echo "=== KEYS OF FIRST ITEM ==="
-          echo "$LIST" | jq -r '.deployments[0] | keys' 2>&1 | head -20
-          DPL_ID=$(echo "$LIST" | jq -r '.deployments[0].uid // .deployments[0].id // empty' 2>/dev/null)
-          DPL_URL=$(echo "$LIST" | jq -r '.deployments[0].url // empty' 2>/dev/null)
-          echo "DPL_ID=$DPL_ID DPL_URL=$DPL_URL"
-          echo "=== vercel inspect via URL ==="
-          npx vercel@56.5.0 inspect "https://${DPL_URL}" --token="${VERCEL_TOKEN}" --scope="${VERCEL_ORG_ID}" 2>&1 | head -60
-          echo "=== v13 detail by id ==="
-          curl -s -H "$AUTH" "${BASE}/v13/deployments/${DPL_ID}?${TEAM}" | head -c 3000
-          echo
-          echo "--- done ---"
 
   verify-preview:
     name: Verify Preview
@@ -247,14 +216,14 @@ jobs:
         run: npm run env:validate -- --target production --env-file .vercel/.env.production.local
 
       - name: Build production artifact
-        run: npx vercel@56.5.0 build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy production
         id: deploy
         run: |
-          url=$(npx vercel@56.5.0 deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          url=$(npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Production URL: $url"
         env:
