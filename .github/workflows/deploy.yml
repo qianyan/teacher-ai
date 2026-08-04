@@ -133,19 +133,19 @@ jobs:
           AUTH="Authorization: Bearer ${VERCEL_TOKEN}"
           TEAM="teamId=${VERCEL_ORG_ID}"
           BASE="https://api.vercel.com"
-          LIST=$(curl -s -H "$AUTH" "${BASE}/v6/deployments?projectId=${VERCEL_PROJECT_ID}&limit=1&${TEAM}")
-          UID=$(echo "$LIST" | jq -r '.deployments[0].uid // empty')
-          URL=$(echo "$LIST" | jq -r '.deployments[0].url // empty')
-          STATE=$(echo "$LIST" | jq -r '.deployments[0].readyState // empty')
-          echo "UID=$UID URL=$URL STATE=$STATE"
-          if [ -z "$UID" ]; then echo "LIST RESPONSE (raw):"; echo "$LIST" | head -c 2000; exit 0; fi
-          echo "=== v13 deployment detail ==="
-          DETAIL=$(curl -s -H "$AUTH" "${BASE}/v13/deployments/${UID}?${TEAM}")
-          echo "$DETAIL" | jq '{state, readyState, readySubstate, errorCode, errorMessage, error, buildError, checksState, aliasAssigned, buildingAt, readyAt, createdAt, name, url}' 2>/dev/null || echo "$DETAIL" | head -c 3000
-          echo "=== deployment builds ==="
-          echo "$DETAIL" | jq '.builds // empty' 2>/dev/null
-          echo "=== build events (tail) ==="
-          curl -s -H "$AUTH" "${BASE}/v2/deployments/${UID}/events?${TEAM}&builds=1" | jq -r '.[] | "\(.type) \(.text)"' 2>/dev/null | tail -c 4000
+          echo "=== RAW LIST RESPONSE (first 3000 chars) ==="
+          LIST=$(curl -s -H "$AUTH" "${BASE}/v6/deployments?projectId=${VERCEL_PROJECT_ID}&limit=2&${TEAM}")
+          echo "$LIST" | head -c 3000
+          echo
+          echo "=== KEYS OF FIRST ITEM ==="
+          echo "$LIST" | jq -r '.deployments[0] | keys' 2>&1 | head -20
+          DPL_ID=$(echo "$LIST" | jq -r '.deployments[0].uid // .deployments[0].id // empty' 2>/dev/null)
+          DPL_URL=$(echo "$LIST" | jq -r '.deployments[0].url // empty' 2>/dev/null)
+          echo "DPL_ID=$DPL_ID DPL_URL=$DPL_URL"
+          echo "=== vercel inspect via URL ==="
+          npx vercel@56.5.0 inspect "https://${DPL_URL}" --token="${VERCEL_TOKEN}" --scope="${VERCEL_ORG_ID}" 2>&1 | head -60
+          echo "=== v13 detail by id ==="
+          curl -s -H "$AUTH" "${BASE}/v13/deployments/${DPL_ID}?${TEAM}" | head -c 3000
           echo
           echo "--- done ---"
 
