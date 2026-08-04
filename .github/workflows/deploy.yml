@@ -132,24 +132,20 @@ jobs:
           set +e
           AUTH="Authorization: Bearer ${VERCEL_TOKEN}"
           TEAM="teamId=${VERCEL_ORG_ID}"
-          LIST=$(curl -s -H "$AUTH" "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&limit=1&${TEAM}")
-          UID=$(echo "$LIST" | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{console.log((JSON.parse(d).deployments||[])[0]?.uid||"");}catch(e){}});')
-          echo "LATEST UID: $UID"
-          echo "=== v13 detail (trimmed) ==="
-          curl -s -H "$AUTH" "https://api.vercel.com/v13/deployments/${UID}?${TEAM}" | node -e '
-            let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{
-              try{
-                const j=JSON.parse(d);
-                const pick=(o,ks)=>Object.fromEntries(ks.filter(k=>o[k]!==undefined).map(k=>[k,o[k]]));
-                console.log(JSON.stringify(pick(j,["state","readyState","name","url","error","buildError","build","checksState","errorCode","errorMessage","aliasAssigned","lambdas","functions"]),null,1).slice(0,4000));
-              }catch(e){console.log("PARSE FAIL:",d.slice(0,1000));}
-            });
-          '
-          echo "=== v2 events builds=1 (tail) ==="
-          curl -s -H "$AUTH" "https://api.vercel.com/v2/deployments/${UID}/events?${TEAM}&builds=1" | tail -c 5000
-          echo
-          echo "=== v1 events (tail) ==="
-          curl -s -H "$AUTH" "https://api.vercel.com/v1/deployments/${UID}/events?${TEAM}" | tail -c 3000
+          BASE="https://api.vercel.com"
+          LIST=$(curl -s -H "$AUTH" "${BASE}/v6/deployments?projectId=${VERCEL_PROJECT_ID}&limit=1&${TEAM}")
+          UID=$(echo "$LIST" | jq -r '.deployments[0].uid // empty')
+          URL=$(echo "$LIST" | jq -r '.deployments[0].url // empty')
+          STATE=$(echo "$LIST" | jq -r '.deployments[0].readyState // empty')
+          echo "UID=$UID URL=$URL STATE=$STATE"
+          if [ -z "$UID" ]; then echo "LIST RESPONSE (raw):"; echo "$LIST" | head -c 2000; exit 0; fi
+          echo "=== v13 deployment detail ==="
+          DETAIL=$(curl -s -H "$AUTH" "${BASE}/v13/deployments/${UID}?${TEAM}")
+          echo "$DETAIL" | jq '{state, readyState, readySubstate, errorCode, errorMessage, error, buildError, checksState, aliasAssigned, buildingAt, readyAt, createdAt, name, url}' 2>/dev/null || echo "$DETAIL" | head -c 3000
+          echo "=== deployment builds ==="
+          echo "$DETAIL" | jq '.builds // empty' 2>/dev/null
+          echo "=== build events (tail) ==="
+          curl -s -H "$AUTH" "${BASE}/v2/deployments/${UID}/events?${TEAM}&builds=1" | jq -r '.[] | "\(.type) \(.text)"' 2>/dev/null | tail -c 4000
           echo
           echo "--- done ---"
 
