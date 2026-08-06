@@ -37,10 +37,7 @@ describe("validateEnvironment", () => {
   });
 
   it("rejects an unknown LLM_PROVIDER", () => {
-    const result = validateEnvironment(
-      { ...baseEnv(), LLM_PROVIDER: "gemini" },
-      "local",
-    );
+    const result = validateEnvironment({ ...baseEnv(), LLM_PROVIDER: "gemini" }, "local");
     expect(result.ok).toBe(false);
     expect(errorNames(result)).toContain("LLM_PROVIDER");
   });
@@ -99,10 +96,7 @@ describe("validateEnvironment", () => {
   });
 
   it("flags a lone E2B_API_KEY as a pair mismatch", () => {
-    const result = validateEnvironment(
-      { ...baseEnv(), E2B_API_KEY: "e2b_test" },
-      "preview",
-    );
+    const result = validateEnvironment({ ...baseEnv(), E2B_API_KEY: "e2b_test" }, "preview");
     expect(result.ok).toBe(false);
     expect(errorNames(result)).toContain("E2B_LONG_SCREENSHOT_TEMPLATE");
   });
@@ -123,10 +117,7 @@ describe("validateEnvironment", () => {
   });
 
   it("rejects a non-positive REPORT_GENERATE_MAX_TOKENS", () => {
-    const result = validateEnvironment(
-      { ...baseEnv(), REPORT_GENERATE_MAX_TOKENS: "0" },
-      "local",
-    );
+    const result = validateEnvironment({ ...baseEnv(), REPORT_GENERATE_MAX_TOKENS: "0" }, "local");
     expect(result.ok).toBe(false);
     expect(errorNames(result)).toContain("REPORT_GENERATE_MAX_TOKENS");
   });
@@ -135,5 +126,19 @@ describe("validateEnvironment", () => {
     const env = { ...baseEnv() };
     delete env.REPORT_GENERATE_MAX_TOKENS;
     expect(validateEnvironment(env, "local").ok).toBe(true);
+  });
+
+  it("accepts an optional SENTRY_DSN on every target", () => {
+    const env = {
+      ...baseEnv(),
+      SENTRY_DSN: "https://example.com/sentry-dsn",
+    };
+    expect(validateEnvironment(env, "local").ok).toBe(true);
+  });
+
+  it("rejects a malformed SENTRY_DSN", () => {
+    const result = validateEnvironment({ ...baseEnv(), SENTRY_DSN: "not-a-url" }, "local");
+    expect(result.ok).toBe(false);
+    expect(errorNames(result)).toContain("SENTRY_DSN");
   });
 });

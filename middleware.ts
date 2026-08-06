@@ -1,10 +1,13 @@
-import {
-  isAuthBackendReachable,
-  updateSession,
-} from "@/lib/supabase/middleware";
+import { isAuthBackendReachable, updateSession } from "@/lib/supabase/middleware";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PREFIXES = ["/login", "/auth/callback", "/api/auth/register", "/api/webhooks/stripe"];
+const PUBLIC_PREFIXES = [
+  "/login",
+  "/auth/callback",
+  "/api/auth/register",
+  "/api/webhooks/stripe",
+  "/health",
+];
 
 // Dev-only E2E harness route (the page itself returns 404 in production).
 if (process.env.NODE_ENV !== "production") PUBLIC_PREFIXES.push("/dev-preview");
